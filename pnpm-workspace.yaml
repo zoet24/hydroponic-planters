@@ -1,0 +1,7 @@
+packages:
+  - 'packages/*'
+
+# pnpm blocks dependency build scripts by default. esbuild's postinstall fetches
+# its native binary, so vite and vitest need it allowed. Nothing else is.
+allowBuilds:
+  esbuild: true

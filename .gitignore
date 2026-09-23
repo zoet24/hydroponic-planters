@@ -1,0 +1,19 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+
+# runtime artefacts
+*.db
+*.db-journal
+data/
+qr/
+
+# secrets
+.env
+.env.*
+!.env.example
+secrets.yaml
+
+# Claude Code local settings
+.claude/settings.local.json
