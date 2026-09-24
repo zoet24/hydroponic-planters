@@ -13,13 +13,36 @@ import { consumeToken, inspectToken } from './claim';
 import { config } from './config';
 import { db, readingsBetween, recentEvents, recordEvent } from './db';
 import { publishDesired, publishFault, publishRunNow, publishTimeScale } from './mqtt';
-import { allPlanters, applyPreset, getPlanter, persist, resolvePreset, toView } from './registry';
-import { addClient, markDirty } from './sse';
+import {
+  allPlanters,
+  applyPreset,
+  getPlanter,
+  persist,
+  reloadFromDb,
+  resolvePreset,
+  toView,
+} from './registry';
+import { addClient, broadcast, markDirty } from './sse';
 
 const IdParam = z.object({ id: z.string().min(1) });
 
 export async function routes(app: FastifyInstance): Promise<void> {
   app.get('/api/health', async () => ({ ok: true, planters: allPlanters().length }));
+
+  /**
+   * Re-read planter config from the database and push it to every client.
+   * Scripts that write to SQLite while this process is running call it, so the
+   * in-memory copy does not quietly overwrite them.
+   */
+  app.post('/api/admin/reload', async () => {
+    const count = reloadFromDb();
+    broadcast('snapshot', {
+      planters: allPlanters().map((p) => toView(p)),
+      simEnabled: config.simEnabled,
+    });
+    console.log(`[registry] reloaded ${count} planter(s) from disk`);
+    return { ok: true, planters: count };
+  });
 
   app.get('/api/stream', (req, reply) => {
     addClient(reply);

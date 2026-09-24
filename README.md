@@ -52,6 +52,25 @@ VITE_AI_PRESETS=true
 The AI preset builder is paused, so its entry points on the Config section and
 the Presets grid are hidden. Flip this on when the screen exists.
 
+## Before a demo
+
+```bash
+pnpm demo:reset
+```
+
+Wipes history and claim state, re-mints a single-use code per planter,
+regenerates the QR codes **against today's address**, seeds 24 hours of history
+and tells the running backend to re-read it. Run it about ten minutes before you
+go on, so "last seen" reads as fresh.
+
+`--host 192.168.1.42` overrides the detected address; `--keepClaims` leaves
+planters claimed, for a rehearsal that skips the scan.
+
+The backend keeps planters in memory, so anything written straight to SQLite
+while it runs would be overwritten on the next MQTT message. The script posts to
+`/api/admin/reload` to prevent that — which is also why it warns if the backend
+is not running.
+
 ## Seeding history
 
 ```bash

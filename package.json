@@ -16,7 +16,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "provision": "pnpm --filter @planter/backend provision",
     "qr": "pnpm --filter @planter/backend provision --qr",
-    "seed": "pnpm --filter @planter/backend seed"
+    "seed": "pnpm --filter @planter/backend seed",
+    "demo:reset": "pnpm --filter @planter/backend demo:reset"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

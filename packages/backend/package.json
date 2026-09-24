@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "provision": "tsx src/scripts/provision.ts",
-    "seed": "tsx src/scripts/seed.ts"
+    "seed": "tsx src/scripts/seed.ts",
+    "demo:reset": "tsx src/scripts/demo-reset.ts"
   },
   "dependencies": {
     "@planter/shared": "workspace:*",

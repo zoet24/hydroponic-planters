@@ -128,25 +128,55 @@ export function persist(record: PlanterRecord): void {
   });
 }
 
-/** Rebuild the fleet from SQLite at startup. Retained MQTT fills in the rest. */
-export function hydrate(): void {
+/**
+ * Re-read the stored fields from SQLite, keeping live telemetry as it is.
+ *
+ * Needed because scripts like `pnpm demo:reset` write straight to the database
+ * while the backend is running. Without this the in-memory copy wins and
+ * silently overwrites them on the next MQTT message, so the reset appears to do
+ * nothing. Config comes from the database; `online` and `reported` stay in
+ * memory, because the broker will not resend retained state on our behalf.
+ */
+export function reloadFromDb(): number {
   const rows = db.prepare('SELECT * FROM planters').all() as Record<string, unknown>[];
   for (const row of rows) {
     const id = String(row.id);
-    fleet.set(id, {
-      id,
-      name: String(row.name),
-      plantType: (row.plant_type as string | null) ?? null,
-      presetId: (row.preset_id as string | null) ?? null,
-      desired: DesiredState.catch(DEFAULT_DESIRED).parse(safeJson(row.desired_json)),
-      reported: ReportedState.catch({}).parse(safeJson(row.reported_json)),
-      online: false, // proven by a retained status message, never assumed
-      lastSeenAt: (row.last_seen_at as number | null) ?? null,
-      claimedAt: (row.claimed_at as number | null) ?? null,
-      desiredSetAt: 0,
-    });
+    const record = fleet.get(id);
+    if (!record) {
+      hydrateRow(row);
+      continue;
+    }
+    record.name = String(row.name);
+    record.plantType = (row.plant_type as string | null) ?? null;
+    record.presetId = (row.preset_id as string | null) ?? null;
+    record.claimedAt = (row.claimed_at as number | null) ?? null;
+    record.desired = DesiredState.catch(DEFAULT_DESIRED).parse(safeJson(row.desired_json));
+    record.desiredSetAt = Date.now();
   }
+  return rows.length;
+}
+
+/** Rebuild the fleet from SQLite at startup. Retained MQTT fills in the rest. */
+export function hydrate(): void {
+  const rows = db.prepare('SELECT * FROM planters').all() as Record<string, unknown>[];
+  for (const row of rows) hydrateRow(row);
   console.log(`[registry] hydrated ${fleet.size} planter(s)`);
+}
+
+function hydrateRow(row: Record<string, unknown>): void {
+  const id = String(row.id);
+  fleet.set(id, {
+    id,
+    name: String(row.name),
+    plantType: (row.plant_type as string | null) ?? null,
+    presetId: (row.preset_id as string | null) ?? null,
+    desired: DesiredState.catch(DEFAULT_DESIRED).parse(safeJson(row.desired_json)),
+    reported: ReportedState.catch({}).parse(safeJson(row.reported_json)),
+    online: false, // proven by a retained status message, never assumed
+    lastSeenAt: (row.last_seen_at as number | null) ?? null,
+    claimedAt: (row.claimed_at as number | null) ?? null,
+    desiredSetAt: 0,
+  });
 }
 
 /**

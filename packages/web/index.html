@@ -4,12 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Smart Planter</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Self-hosted: the demo hotspot may have no internet, and a failed Google
+         Fonts request falls back to system-ui without any visible error. -->
+    <link rel="stylesheet" href="/fonts/fonts.css" />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/figtree-400-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/bricolage-grotesque-700-latin.woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>
