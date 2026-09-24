@@ -1,0 +1,272 @@
+# Herb Tower — ESPHome configuration
+#
+# Revised from esphome.original.yaml against DESIGN.md §2. The original had no
+# MQTT, no sensors and no low-water interlock; it scheduled a pump and nothing
+# else. Everything the app relies on is added here.
+#
+# NOT YET COMPILED. See firmware/README.md before flashing.
+
+substitutions:
+  # The MQTT topic prefix, and therefore the planter's identity to the app.
+  # It is deliberately separate from the ESPHome node name.
+  planter_id: planter-001
+
+esphome:
+  name: herb-tower
+  friendly_name: Herb Tower
+  on_boot:
+    # Late enough that the fan component exists. A reset part-way through a run
+    # must not leave the pump driving.
+    priority: -100
+    then:
+      - fan.turn_off: pump
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+logger:
+  level: DEBUG
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+web_server:
+  port: 80
+
+# NOTE: the native `api:` component is deliberately absent. It reboots the device
+# after 15 minutes with no API client connected, and nothing connects to it here
+# because the app speaks MQTT. Leaving it in gives a board that reboots every
+# quarter of an hour, which is a miserable thing to debug mid-demo.
+
+mqtt:
+  broker: !secret mqtt_host
+  topic_prefix: ${planter_id}
+  discovery: false          # we do not consume Home Assistant discovery
+  # Do not reboot when the broker is away. The broker is a laptop and will be
+  # restarted often; rebooting does not help and loses several seconds.
+  reboot_timeout: 0s
+  # Default birth/will give ${planter_id}/status -> online | offline, retained.
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Hydro AP"
+    password: !secret ap_password
+
+captive_portal:
+
+i2c:
+  sda: GPIO06
+  scl: GPIO07
+  scan: true
+
+one_wire:
+  - platform: gpio
+    pin: GPIO05
+
+time:
+  - platform: sntp
+    # Must match where the tower actually is: the app computes "next run"
+    # in local time and the two have to agree.
+    timezone: Europe/London
+    id: system_time
+    on_time:
+      - seconds: 0
+        minutes: 0
+        then:
+          - lambda: |-
+              if (!id(system_time).now().is_valid()) return;
+              auto now = id(system_time).now();
+              int current_hour = now.hour;
+              if (current_hour % id(interval_hours) == 0 && current_hour != id(last_scheduled_run)) {
+                ESP_LOGI("schedule", "Running pump at scheduled time %02d:00", current_hour);
+                id(last_scheduled_run) = current_hour;
+                id(run_pump).execute();
+              }
+
+globals:
+  - id: interval_hours
+    type: int
+    initial_value: '6'
+    restore_value: true
+
+  - id: runtime_minutes
+    type: int
+    initial_value: '2'
+    restore_value: true
+
+  - id: last_scheduled_run
+    type: int
+    initial_value: '-1'
+    restore_value: true
+
+sensor:
+  - platform: dallas_temp
+    name: "Water Temperature"
+    update_interval: 10s
+    accuracy_decimals: 1
+
+  - platform: bh1750
+    name: "Light Level"
+    update_interval: 10s
+    accuracy_decimals: 0
+
+binary_sensor:
+  - platform: gpio
+    name: "Water OK"
+    id: water_ok
+    pin:
+      number: GPIO10
+      mode: INPUT_PULLUP
+      # POLARITY UNVERIFIED — see README. Backwards, this blocks a full tank
+      # and permits a dry one, which is the exact opposite of the intent.
+      inverted: true
+    filters:
+      # Fail fast, recover slow: OFF is instant, but the float must read OK for
+      # five continuous seconds before we believe it. A sloshing float should
+      # never re-enable a pump.
+      - delayed_on: 5s
+    on_release:
+      # Water has gone low. Cut a run already in progress — stopping the script
+      # first, because that kills the pending delay and with it the script's own
+      # turn-off, so the explicit one has to be here and has to come second.
+      - script.stop: run_pump
+      - fan.turn_off: pump
+      - logger.log: "INTERLOCK: low water, pump stopped"
+
+  - platform: template
+    name: "Pump Blocked"
+    id: pump_blocked
+    lambda: "return !id(water_ok).state || !id(pump_enable).state;"
+
+switch:
+  - platform: template
+    name: "Pump Enable"
+    id: pump_enable
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+number:
+  - platform: template
+    name: "Pump Interval Hours"
+    id: interval_input
+    optimistic: true
+    min_value: 1
+    max_value: 24
+    step: 1
+    initial_value: 6
+    restore_value: true
+    on_value:
+      then:
+        - lambda: |-
+            int requested = (int) x;
+            int snapped = requested;
+            if (24 % snapped != 0) {
+              for (int i = requested - 1; i >= 1; i--) {
+                if (24 % i == 0) { snapped = i; break; }
+              }
+            }
+            id(interval_hours) = snapped;
+            ESP_LOGI("schedule", "Interval set to every %d hours", snapped);
+            // Report the value we will actually honour, not the one asked for.
+            // Without this the entity confirms a schedule the pump never runs,
+            // and the app's "confirmed" indicator is a lie. The guard stops the
+            // republish from recursing: on the second pass requested == snapped.
+            if (snapped != requested) {
+              id(interval_input).publish_state(snapped);
+            }
+
+  - platform: template
+    name: "Pump Runtime"          # renamed: "(min)" produced pump_runtime__min_
+    id: runtime_input
+    optimistic: true
+    min_value: 1
+    max_value: 30
+    step: 1
+    initial_value: 2
+    restore_value: true
+    unit_of_measurement: min
+    on_value:
+      then:
+        - lambda: |-
+            id(runtime_minutes) = (int) x;
+            ESP_LOGI("schedule", "Runtime set to %d minutes", id(runtime_minutes));
+
+text_sensor:
+  - platform: template
+    name: "Last Run Hour"
+    id: last_run_text
+    icon: "mdi:clock-check-outline"
+    update_interval: 60s
+    lambda: |-
+      if (id(last_scheduled_run) == -1) return {"Never"};
+      char buffer[8];
+      sprintf(buffer, "%02d:00", id(last_scheduled_run));
+      return {buffer};
+
+  - platform: template
+    name: "Next Scheduled Runs"
+    id: next_run_text
+    icon: "mdi:clock-outline"
+    update_interval: 60s
+    lambda: |-
+      std::string result = "";
+      for (int i = 0; i < 24; i += id(interval_hours)) {
+        if (result.length() > 0) result += ", ";
+        char buffer[6];
+        sprintf(buffer, "%02d:00", i);
+        result += buffer;
+      }
+      return {result};
+
+output:
+  - platform: ledc
+    pin: GPIO03
+    id: motor_forward_pin
+    frequency: 1000 Hz
+
+  - platform: ledc
+    pin: GPIO04
+    id: motor_reverse_pin
+    frequency: 1000 Hz
+
+fan:
+  - platform: hbridge
+    id: pump
+    name: "Pump"
+    pin_a: motor_forward_pin
+    pin_b: motor_reverse_pin
+    decay_mode: slow
+    # 100 steps, so the MQTT speed_level maps 1:1 to the percentage the app sends.
+    speed_count: 100
+
+script:
+  - id: run_pump
+    mode: restart
+    then:
+      - if:
+          condition:
+            and:
+              - switch.is_on: pump_enable
+              - binary_sensor.is_on: water_ok
+          then:
+            - fan.turn_on:
+                id: pump
+                # A freshly flashed board has speed 0, and a fan turned on at
+                # speed 0 drives nothing. Fall back to something that pumps.
+                speed: !lambda "return id(pump).speed > 0 ? id(pump).speed : 70;"
+            - delay: !lambda "return id(runtime_minutes) * 60 * 1000;"
+            - fan.turn_off: pump
+          else:
+            - logger.log: "INTERLOCK: run refused (pump disabled or low water)"
+
+button:
+  - platform: template
+    name: "Run Pump Now"
+    id: run_pump_now
+    on_press:
+      - script.execute: run_pump

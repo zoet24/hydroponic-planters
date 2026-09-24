@@ -1,4 +1,5 @@
 import type { FastifyReply } from 'fastify';
+import { config } from './config';
 import { allPlanters, toView, type PlanterView } from './registry';
 
 /**
@@ -26,7 +27,12 @@ export function addClient(reply: FastifyReply): void {
   reply.raw.write(': connected\n\n');
 
   clients.add(reply);
-  send(reply, 'snapshot', { planters: allPlanters().map((p) => toView(p)) });
+  // simEnabled rides along on the snapshot so the UI needs no extra fetch to
+  // know whether the dev drawer is available.
+  send(reply, 'snapshot', {
+    planters: allPlanters().map((p) => toView(p)),
+    simEnabled: config.simEnabled,
+  });
 
   reply.raw.on('close', () => clients.delete(reply));
 }

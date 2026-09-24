@@ -13,7 +13,9 @@ qr/
 .env
 .env.*
 !.env.example
-secrets.yaml
+firmware/secrets.yaml
+.esphome/
+firmware/.esphome/
 
 # Claude Code local settings
 .claude/settings.local.json

@@ -86,7 +86,7 @@ That mismatch is worth 30 seconds on stage. "Optimistic state" is a real pattern
 
 ### Firmware delta
 
-The YAML compiles with no hardware attached (`esphome compile esphome.yaml`), so **write it on Fri 25 Sep, before the board is in your hands** (§8). Hardware day then becomes flash-and-verify instead of author-and-debug. Pins below are placeholders — set them from your wiring.
+**Written — see `firmware/esphome.yaml`.** The delta below is what changed; the file itself is the source of truth and carries two further removals (`api:`, and `mqtt.reboot_timeout`) explained in `firmware/README.md`. It has **not been compiled** — ESPHome needs Python 3.11+, which this machine does not have. Pins are still placeholders pending the C3 Super Mini pinout.
 
 ```yaml
 mqtt:

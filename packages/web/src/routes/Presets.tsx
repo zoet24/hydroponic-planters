@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { AI_PRESETS_ENABLED } from '../features';
 import { api, post, usePlanter } from '../PlantersContext';
 import type { Preset } from '../types';
 
@@ -107,16 +108,18 @@ export function Presets() {
           );
         })}
 
-        <div className="card preset-card preset-card--ai">
-          <span className="preset-card__name">Create with AI</span>
-          <p className="preset-card__ai-blurb">
-            Name any plant and get a draft preset. Safety limits are checked before it can reach
-            your planter.
-          </p>
-          <Link to={`/planters/${planter.id}/ai`} className="button button--primary">
-            Try it
-          </Link>
-        </div>
+        {AI_PRESETS_ENABLED && (
+          <div className="card preset-card preset-card--ai">
+            <span className="preset-card__name">Create with AI</span>
+            <p className="preset-card__ai-blurb">
+              Name any plant and get a draft preset. Safety limits are checked before it can reach
+              your planter.
+            </p>
+            <Link to={`/planters/${planter.id}/ai`} className="button button--primary">
+              Try it
+            </Link>
+          </div>
+        )}
       </div>
 
       {error && <p className="formerror" role="alert">{error}</p>}

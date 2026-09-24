@@ -108,6 +108,17 @@ export function parseStateTopic(topic: string): ParsedTopic | null {
   return signal ? { deviceId, signal } : null;
 }
 
+/**
+ * How ESPHome turns an entity's `name:` into the object id that appears in its
+ * MQTT topic: lower case, spaces to underscores, anything else that is not
+ * alphanumeric, `-` or `_` replaced with `_`.
+ *
+ * This is why the firmware renames "Pump Runtime (min)" — the parentheses would
+ * have produced `pump_runtime__min_`.
+ */
+export const esphomeObjectId = (name: string): string =>
+  name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '_');
+
 /** ESPHome speaks ON/OFF. Decoding is tolerant; encoding is not. */
 export const onOff = {
   encode: (value: boolean): string => (value ? 'ON' : 'OFF'),

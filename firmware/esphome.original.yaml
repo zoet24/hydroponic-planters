@@ -1,0 +1,173 @@
+esphome:
+  name: herb-tower
+  friendly_name: Herb Tower
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+  
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  - platform: esphome
+
+web_server:
+  port: 80
+
+wifi:
+  ap:
+    ssid: "Hydro AP"
+    password: "hydro_tower"
+
+captive_portal:
+
+globals:
+  - id: interval_hours
+    type: int
+    initial_value: '6'  # run every 6 hours
+    restore_value: true
+
+  - id: runtime_minutes
+    type: int
+    initial_value: '5'
+    restore_value: true
+    
+  - id: last_scheduled_run
+    type: int
+    initial_value: '-1'  # To track last scheduled run hour
+    restore_value: true
+
+text_sensor:
+  - platform: template
+    name: "Last Run Hour"
+    id: last_run_text
+    icon: "mdi:clock-check-outline"
+    update_interval: 60s
+    lambda: |-
+      if (id(last_scheduled_run) == -1) return {"Never"};
+      
+      char buffer[8];
+      sprintf(buffer, "%02d:00", id(last_scheduled_run));
+      return {buffer};
+  - platform: template
+    name: "Next Scheduled Runs"
+    id: next_run_text
+    icon: "mdi:clock-outline"
+    update_interval: 10s
+    lambda: |-
+      if (!id(system_time).now().is_valid()) return {"Unknown"};
+      
+      auto now = id(system_time).now();
+      int interval = id(interval_hours);
+      
+      // Calculate run times based on interval
+      std::string result = "";
+      for (int i = 0; i < 24; i += interval) {
+        if (result.length() > 0) {
+          result += ", ";
+        }
+        char buffer[6];
+        sprintf(buffer, "%02d:00", i);
+        result += buffer;
+      }
+      
+      return {result};
+
+number:            
+  - platform: template
+    name: "Pump Interval Hours"
+    id: interval_input
+    optimistic: true
+    min_value: 1
+    max_value: 24
+    step: 1
+    initial_value: 6
+    on_value:
+      then:
+        - lambda: |-
+            id(interval_hours) = (int)x;
+            // Make sure interval divides evenly into 24 if possible
+            if (24 % id(interval_hours) != 0) {
+              // Find the closest divisor
+              int closest = id(interval_hours);
+              for (int i = id(interval_hours) - 1; i >= 1; i--) {
+                if (24 % i == 0 && 24 / i <= id(interval_hours) + 2) {
+                  closest = i;
+                  break;
+                }
+              }
+              id(interval_hours) = closest;
+            }
+            ESP_LOGI("schedule", "Interval set to every %d hours", id(interval_hours));
+
+  - platform: template
+    name: "Pump Runtime (min)"
+    id: runtime_input
+    optimistic: true
+    min_value: 1
+    max_value: 30
+    step: 1
+    initial_value: 2
+    on_value:
+      then:
+        - lambda: |-
+            id(runtime_minutes) = (int)x;
+            ESP_LOGI("schedule", "Runtime set to %d minutes", id(runtime_minutes));
+
+time:
+  - platform: sntp
+    timezone: Europe/Berlin
+    id: system_time
+    on_time:
+      - seconds: 0
+        minutes: 0
+        then:
+          - lambda: |-
+              if (!id(system_time).now().is_valid()) return;
+              
+              auto now = id(system_time).now();
+              int current_hour = now.hour;
+              
+              // Check if current hour is a scheduled run time (divisible by interval)
+              if (current_hour % id(interval_hours) == 0 && current_hour != id(last_scheduled_run)) {
+                ESP_LOGI("schedule", "Running pump at scheduled time %02d:00", current_hour);
+                id(last_scheduled_run) = current_hour;
+                id(run_pump).execute();
+              }
+    
+output:
+  - platform: ledc
+    pin: GPIO03
+    id: motor_forward_pin
+    frequency: 1000 Hz
+  
+  - platform: ledc
+    pin: GPIO04
+    id: motor_reverse_pin
+    frequency: 1000 Hz
+
+fan:
+  - platform: hbridge
+    id: pump
+    name: "Pump"
+    pin_a: motor_forward_pin
+    pin_b: motor_reverse_pin
+    decay_mode: slow
+
+script:
+  - id: run_pump
+    mode: restart
+    then:
+      - fan.turn_on: pump
+      - delay: !lambda "return id(runtime_minutes) * 60 * 1000;"
+      - fan.turn_off: pump
+
+button:
+  - platform: template
+    name: "Run Pump Now"
+    on_press:
+      - script.execute: run_pump

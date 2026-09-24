@@ -1,15 +1,19 @@
 import { Link } from 'react-router-dom';
+import { useDevDrawer, useLongPress } from '../components/DevDrawer';
 import { PlanterCard } from '../components/PlanterCard';
 import { fleetSummary } from '../lib/format';
 import { usePlanters } from '../PlantersContext';
 
 export function Home() {
   const { planters, connection } = usePlanters();
+  const dev = useDevDrawer();
+  const longPress = useLongPress(() => dev.setOpen(true));
 
   return (
     <div className="page">
       <header className="masthead">
-        <span className="wordmark">Smart Planter</span>
+        {/* No visible affordance: a long press here opens the simulator drawer. */}
+        <span className="wordmark" {...longPress}>Smart Planter</span>
         <div className="masthead__right">
           {connection !== 'live' && (
             <span className="connection" role="status">

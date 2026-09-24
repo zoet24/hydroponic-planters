@@ -3,6 +3,7 @@ import { Link, Outlet, useParams } from 'react-router-dom';
 import { LineChart, PumpStrip } from '../components/Chart';
 import { Chip } from '../components/Chip';
 import { EventIcon } from '../components/EventIcon';
+import { AI_PRESETS_ENABLED } from '../features';
 import { configRows, dueLabel } from '../lib/detail';
 import {
   collapsePumpRuns,
@@ -192,8 +193,15 @@ function Config({ planter: p }: { planter: PlanterView }) {
       <div className="section__head">
         <h2>Config</h2>
         <div className="row">
-          <Link to={`/planters/${p.id}/preset`} className="button">Change preset</Link>
-          <Link to={`/planters/${p.id}/ai`} className="button button--primary">Create with AI</Link>
+          <Link
+            to={`/planters/${p.id}/preset`}
+            className={`button${AI_PRESETS_ENABLED ? '' : ' button--primary'}`}
+          >
+            Change preset
+          </Link>
+          {AI_PRESETS_ENABLED && (
+            <Link to={`/planters/${p.id}/ai`} className="button button--primary">Create with AI</Link>
+          )}
         </div>
       </div>
 

@@ -34,6 +34,24 @@ pnpm dev:sim
 pnpm dev:web
 ```
 
+## Simulator controls
+
+Long-press the "Smart Planter" wordmark on the home screen, or add `?dev=1` to
+any URL. Gives fault injection (low water, sensor dropout, offline) and time
+acceleration, so a demo never needs a terminal. Stays open across navigation,
+and only appears when the backend has `SIM_ENABLED`.
+
+## Feature flags
+
+`packages/web/.env`:
+
+```
+VITE_AI_PRESETS=true
+```
+
+The AI preset builder is paused, so its entry points on the Config section and
+the Presets grid are hidden. Flip this on when the screen exists.
+
 ## Seeding history
 
 ```bash

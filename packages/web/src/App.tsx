@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { DevDrawer, DevDrawerProvider } from './components/DevDrawer';
 import { PlantersProvider } from './PlantersContext';
 import { AddPlanter } from './routes/AddPlanter';
 import { Claim } from './routes/Claim';
@@ -12,19 +13,31 @@ export function App() {
   return (
     <BrowserRouter>
       <PlantersProvider>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/add" element={<AddPlanter />} />
-          <Route path="/claim" element={<Claim />} />
+        <DevDrawerProvider>
+          <Shell />
+        </DevDrawerProvider>
+      </PlantersProvider>
+    </BrowserRouter>
+  );
+}
+
+/** Inside the router and both providers, so every hook is available. */
+function Shell() {
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/add" element={<AddPlanter />} />
+        <Route path="/claim" element={<Claim />} />
         {/* pH check is nested so the dashboard renders behind it: UI-HANDOFF
             calls for a modal on desktop and a full screen on the phone. */}
         <Route path="/planters/:id" element={<PlanterDetail />}>
           <Route path="ph" element={<PhCheck />} />
         </Route>
         <Route path="/planters/:id/preset" element={<Presets />} />
-          <Route path="*" element={<Home />} />
-        </Routes>
-      </PlantersProvider>
-    </BrowserRouter>
+        <Route path="*" element={<Home />} />
+      </Routes>
+      <DevDrawer />
+    </>
   );
 }
