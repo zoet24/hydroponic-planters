@@ -2,11 +2,12 @@ import type { MqttClient } from 'mqtt';
 import {
   AVAILABILITY,
   deviceTopics,
+  lightLux,
   numeric,
   onOff,
+  waterTempC,
   type FaultKind,
 } from '@planter/shared';
-import { lightLux, waterTempC } from './telemetry';
 
 /**
  * One virtual planter. Publishes and accepts exactly the topics in DESIGN.md §2,

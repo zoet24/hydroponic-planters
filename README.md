@@ -34,6 +34,17 @@ pnpm dev:sim
 pnpm dev:web
 ```
 
+## Seeding history
+
+```bash
+pnpm seed                       # 24h of readings and pump runs, every planter
+pnpm seed --id planter-001 --hours 48
+```
+
+Time acceleration does not create history: the backend stamps readings with real
+time and throttles on real time, so running the simulator fast changes how quickly
+values move, not how much history exists. Seed before a demo so the charts are full.
+
 ## Provisioning a planter
 
 ```bash

@@ -5,7 +5,7 @@ export interface PlanterView {
   name: string;
   plantType: string | null;
   presetId: string | null;
-  preset: { id: string; name: string; plantType: string } | null;
+  preset: Preset | null;
   claimed: boolean;
   simulated: boolean;
   online: boolean;
@@ -34,5 +34,20 @@ export interface PlanterView {
   syncStale: boolean;
   flowEstimateLpm: number;
   alerts: { kind: string; severity: 'warning' | 'critical'; message: string }[];
+  phCheckDueAt: number | null;
+  nutrientsDueAt: number | null;
+  nutrientsStatus: 'ok' | 'due' | 'overdue' | null;
+}
+
+/** Mirrors the Preset schema in packages/shared/src/preset.ts. */
+export interface Preset {
+  id: string;
+  name: string;
+  plantType: string;
+  pump: { intervalHours: number; runtimeMinutes: number; speedPercent: number };
+  light: { minLux: number };
+  waterTempC: { min: number; max: number };
+  ph: { targetMin: number; targetMax: number; checkIntervalDays: number };
+  nutrients: { strengthMultiplier: number; scheduleDays: number };
 }
 

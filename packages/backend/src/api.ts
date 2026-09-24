@@ -149,8 +149,14 @@ export async function routes(app: FastifyInstance): Promise<void> {
 
   app.get('/api/planters/:id/events', async (req) => {
     const { id } = IdParam.parse(req.params);
-    const { limit } = z.object({ limit: z.coerce.number().min(1).max(200).default(50) }).parse(req.query);
-    return recentEvents(id, limit).map((e) => ({
+    const q = z
+      .object({
+        limit: z.coerce.number().min(1).max(500).default(50),
+        from: z.coerce.number().optional(),
+      })
+      .parse(req.query);
+
+    return recentEvents(id, q.limit, q.from).map((e) => ({
       ...e,
       payload: e.payload ? JSON.parse(e.payload) : null,
     }));

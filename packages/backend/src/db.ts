@@ -149,8 +149,16 @@ export function readingsBetween(planterId: string, metric: string, from: number,
     .all(planterId, metric, from, to) as { ts: number; value: number }[];
 }
 
-export function recentEvents(planterId: string, limit = 50) {
+export function recentEvents(planterId: string, limit = 50, from?: number) {
   return db
-    .prepare('SELECT id, ts, type, payload FROM events WHERE planter_id = ? ORDER BY ts DESC LIMIT ?')
-    .all(planterId, limit) as { id: number; ts: number; type: string; payload: string | null }[];
+    .prepare(
+      `SELECT id, ts, type, payload FROM events
+        WHERE planter_id = ? AND ts >= ? ORDER BY ts DESC LIMIT ?`,
+    )
+    .all(planterId, from ?? 0, limit) as {
+    id: number;
+    ts: number;
+    type: string;
+    payload: string | null;
+  }[];
 }

@@ -8,7 +8,8 @@
     "start": "tsx src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "provision": "tsx src/scripts/provision.ts"
+    "provision": "tsx src/scripts/provision.ts",
+    "seed": "tsx src/scripts/seed.ts"
   },
   "dependencies": {
     "@planter/shared": "workspace:*",

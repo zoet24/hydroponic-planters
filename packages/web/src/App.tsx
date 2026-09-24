@@ -3,6 +3,7 @@ import { PlantersProvider } from './PlantersContext';
 import { AddPlanter } from './routes/AddPlanter';
 import { Claim } from './routes/Claim';
 import { Home } from './routes/Home';
+import { PlanterDetail } from './routes/PlanterDetail';
 
 /** Routes follow UI-HANDOFF.md. Planter detail and the rest come next. */
 export function App() {
@@ -13,6 +14,7 @@ export function App() {
           <Route path="/" element={<Home />} />
           <Route path="/add" element={<AddPlanter />} />
           <Route path="/claim" element={<Claim />} />
+        <Route path="/planters/:id" element={<PlanterDetail />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </PlantersProvider>

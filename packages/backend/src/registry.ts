@@ -12,6 +12,7 @@ import {
   type Preset,
 } from '@planter/shared';
 import { db, peakLuxLast24h, recordEvent } from './db';
+import { nutrientStatus } from '@planter/shared';
 
 /**
  * The in-memory fleet. Reported state lives here and is rebuilt from retained
@@ -36,6 +37,10 @@ export interface PlanterView {
   syncStale: boolean;
   flowEstimateLpm: number;
   alerts: Alert[];
+  /** Epoch ms, or null when there is no preset or nothing recorded yet. */
+  phCheckDueAt: number | null;
+  nutrientsDueAt: number | null;
+  nutrientsStatus: 'ok' | 'due' | 'overdue' | null;
 }
 
 interface PlanterRecord {
@@ -200,6 +205,7 @@ export function toView(record: PlanterRecord, now = Date.now()): PlanterView {
     syncing: pending.length > 0,
     syncStale: pending.length > 0 && isSyncStale(record.desiredSetAt, now),
     flowEstimateLpm: estimateFlowLpm(record.reported.pumpOn === true, record.reported.speedPercent ?? 0),
+    ...dueDates(record.id, preset, now),
     alerts: evaluateAlerts({
       online: record.online,
       reported: record.reported,
@@ -224,6 +230,34 @@ export function applyPreset(record: PlanterRecord, preset: Preset): void {
   record.presetId = preset.id;
   record.plantType = preset.plantType;
   recordEvent(record.id, 'preset_applied', { presetId: preset.id, name: preset.name });
+}
+
+/**
+ * When the next pH check and nutrient dose fall due. Both are anchored to the
+ * last recorded one, per DESIGN.md — not to a fixed time of day.
+ */
+function dueDates(planterId: string, preset: Preset | null, now: number) {
+  if (!preset) return { phCheckDueAt: null, nutrientsDueAt: null, nutrientsStatus: null };
+
+  const lastPh = db
+    .prepare('SELECT ts FROM ph_checkins WHERE planter_id = ? ORDER BY ts DESC LIMIT 1')
+    .get(planterId) as { ts: number } | undefined;
+
+  const lastNutrients = db
+    .prepare("SELECT ts FROM events WHERE planter_id = ? AND type = 'nutrients_added' ORDER BY ts DESC LIMIT 1")
+    .get(planterId) as { ts: number } | undefined;
+
+  const nutrients = nutrientStatus({
+    lastAddedAt: lastNutrients?.ts ?? null,
+    scheduleDays: preset.nutrients.scheduleDays,
+    now,
+  });
+
+  return {
+    phCheckDueAt: lastPh ? lastPh.ts + preset.ph.checkIntervalDays * 86_400_000 : now,
+    nutrientsDueAt: nutrients.dueAt,
+    nutrientsStatus: nutrients.status,
+  };
 }
 
 function safeJson(value: unknown): unknown {

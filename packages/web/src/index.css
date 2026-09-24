@@ -344,3 +344,171 @@ h1 {
 .idcard .chip { align-self: flex-start; }
 
 .button--block { width: 100%; justify-content: center; }
+
+/* ── Planter detail ─────────────────────────────────────────── */
+
+.page--detail { gap: 44px; }
+
+.detail-head { display: flex; flex-direction: column; gap: 16px; }
+.detail-head__row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.detail-head h1 { font-size: 34px; }
+@media (min-width: 900px) { .detail-head h1 { font-size: 52px; } }
+
+.backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  min-height: 44px;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--green);
+  text-decoration: none;
+}
+.backlink:hover { color: var(--green-hover); }
+
+/* The header chips run a size up from the card chips. */
+.detail-head__row .chip { padding: 5px 14px 5px 12px; font-size: 16px; }
+.detail-head__row .chip__dot { width: 9px; height: 9px; }
+.chip--plain { padding: 5px 14px; }
+.chip--link { text-decoration: none; }
+.chip--link:hover { filter: brightness(0.96); }
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.banner--ok { background: var(--chip-green-bg); color: var(--chip-green-text); }
+.banner--warning { background: var(--chip-amber-bg); color: #3b2704; }
+.banner--critical { background: var(--chip-red-bg); color: #3b1108; }
+
+.section { display: flex; flex-direction: column; gap: 16px; }
+.section__head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.section h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 24px; }
+@media (min-width: 900px) { .section h2 { font-size: 30px; } }
+
+/* ── Live stat cards ────────────────────────────────────────── */
+
+.stat-grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+@media (min-width: 620px)  { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1040px) { .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.stat { gap: 10px; }
+.stat__label { font-size: 17px; color: var(--muted); font-weight: 500; }
+.stat__value {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 620px) { .stat__value { font-size: 64px; } }
+.stat__unit { font-size: 28px; font-weight: 600; color: var(--muted); margin-left: 5px; }
+.stat .chip { align-self: flex-start; padding: 5px 14px 5px 12px; font-size: 15px; }
+.stat .chip__dot { width: 9px; height: 9px; }
+.stat__note { margin: 0; font-size: 15px; color: var(--muted); line-height: 1.4; }
+
+/* ── Config table ───────────────────────────────────────────── */
+
+.config { gap: 20px; padding: 24px; }
+@media (min-width: 900px) { .config { padding: 28px; } }
+.config__explainer { margin: 0; font-size: 17px; color: var(--muted); line-height: 1.45; }
+.config__table { display: flex; flex-direction: column; }
+
+.config__row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.2fr 1.6fr;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--hairline);
+  font-size: 18px;
+}
+@media (min-width: 900px) { .config__row { font-size: 20px; } }
+.config__row--head {
+  border-top: 0;
+  padding: 8px 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.config__row--foot { grid-template-columns: 1.2fr 1fr; font-size: 17px; color: var(--muted); }
+.config__setting { font-weight: 600; }
+.config__status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.config__status .chip { padding: 5px 14px 5px 12px; font-size: 15px; }
+.config__status .chip__dot { width: 9px; height: 9px; }
+.config__spanrest { grid-column: 2 / -1; }
+
+/* Below the desktop breakpoint the four columns stop fitting: each row becomes
+   a labelled block rather than shrinking the numbers into unreadability. */
+@media (max-width: 719px) {
+  .config__row { grid-template-columns: 1fr 1fr; row-gap: 6px; }
+  .config__row--head { display: none; }
+  .config__setting { grid-column: 1 / -1; }
+  /* Block, not inline: sharing a line pushed "Every 4 h" onto two. */
+  .config__row > span:nth-child(2)::before,
+  .config__row > span:nth-child(3)::before { display: block; color: var(--muted); font-size: 14px; }
+  .config__row > span:nth-child(2)::before { content: 'Wanted'; }
+  .config__row > span:nth-child(3)::before { content: 'Reported'; }
+  .config__status { grid-column: 1 / -1; }
+  .config__row--foot .config__spanrest { grid-column: 1 / -1; }
+}
+
+.button--small { height: 40px; padding: 0 16px; border-radius: 10px; font-size: 15px; border-width: 1.5px; }
+
+/* ── History ────────────────────────────────────────────────── */
+
+.segmented { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 12px; overflow: hidden; }
+.segmented button {
+  height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+}
+.segmented button + button { border-left: 1.5px solid var(--ink); }
+.segmented button[aria-pressed='true'] { background: var(--ink); color: #fff; }
+
+.history { gap: 14px; padding: 24px; }
+@media (min-width: 900px) { .history { padding: 28px; } }
+.legend { display: flex; flex-wrap: wrap; gap: 24px; font-size: 16px; color: var(--muted); }
+.legend > span { display: inline-flex; align-items: center; gap: 8px; }
+.legend__line { width: 18px; height: 5px; border-radius: 3px; }
+.legend__bar { width: 8px; height: 16px; border-radius: 2px; background: var(--green); }
+.chart { display: block; touch-action: none; }
+
+/* ── Timeline ───────────────────────────────────────────────── */
+
+.timeline { padding: 12px 24px; gap: 0; }
+@media (min-width: 900px) { .timeline { padding: 12px 28px; } }
+.timeline__row { display: flex; align-items: center; gap: 16px; padding: 14px 0; font-size: 17px; }
+.timeline__row + .timeline__row { border-top: 1px solid var(--hairline); }
+.timeline__time { width: 150px; flex-shrink: 0; color: var(--muted); font-size: 16px; }
+.timeline__dot {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.timeline__ph { font-weight: 700; font-size: 13px; }
+.timeline__dot--green { background: var(--chip-green-bg); color: var(--chip-green-text); }
+.timeline__dot--amber { background: var(--chip-amber-bg); color: var(--chip-amber-text); }
+.timeline__dot--red   { background: var(--chip-red-bg); color: var(--chip-red-text); }
+.timeline__dot--grey  { background: var(--chip-grey-bg); color: var(--chip-grey-text); }
+
+@media (max-width: 619px) {
+  .timeline__row { flex-wrap: wrap; }
+  .timeline__time { width: auto; }
+}

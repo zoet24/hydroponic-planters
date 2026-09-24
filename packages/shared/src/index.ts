@@ -1,4 +1,6 @@
 export * from './alerts';
+export * from './chart';
+export * from './events';
 export * from './flow';
 export * from './nutrients';
 export * from './ph';
@@ -7,4 +9,5 @@ export * from './presets';
 export * from './schedule';
 export * from './sim';
 export * from './state';
+export * from './telemetry';
 export * from './topics';
