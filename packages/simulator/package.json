@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "broker": "tsx src/broker.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@planter/shared": "workspace:*"
+    "@planter/shared": "workspace:*",
+    "aedes": "^1.2.0",
+    "mqtt": "^5.16.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

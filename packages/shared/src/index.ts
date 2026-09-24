@@ -4,5 +4,6 @@ export * from './nutrients';
 export * from './ph';
 export * from './preset';
 export * from './presets';
+export * from './sim';
 export * from './state';
 export * from './topics';

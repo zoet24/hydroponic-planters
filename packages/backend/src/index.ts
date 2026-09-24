@@ -1,12 +1,36 @@
-import { phAdvice } from '@planter/shared';
+import Fastify from 'fastify';
+import { ZodError } from 'zod';
+import { routes } from './api';
+import { config } from './config';
+import { pruneOldReadings } from './db';
+import { startMqtt } from './mqtt';
+import { hydrate, seedPresets } from './registry';
 
-// Placeholder entry point. Real work starts Wed 23 Sep: SQLite, MQTT ingest, SSE.
-// For now it only proves the workspace package resolves under tsx.
-const check = phAdvice({
-  ph: 6.4,
-  range: { min: 5.5, max: 6.2 },
-  readingAgeHours: 4,
-  checkIntervalDays: 3,
+const app = Fastify({ logger: false });
+
+app.setErrorHandler((err, _req, reply) => {
+  if (err instanceof ZodError) {
+    return reply.code(400).send({ error: 'invalid request', issues: err.issues });
+  }
+  console.error('[api]', err);
+  return reply.code(500).send({ error: 'internal error' });
 });
 
-console.log(`[backend] shared resolves — ${check.status} / ${check.action}`);
+async function main(): Promise<void> {
+  seedPresets();
+  hydrate();
+  const pruned = pruneOldReadings();
+  if (pruned > 0) console.log(`[db] pruned ${pruned} old reading(s)`);
+
+  startMqtt();
+  await app.register(routes);
+  await app.listen({ port: config.port, host: config.host });
+
+  console.log(`[backend] http://${config.host}:${config.port}`);
+  if (config.simEnabled) console.log('[backend] simulator control endpoints are ENABLED');
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

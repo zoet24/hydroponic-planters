@@ -5,3 +5,4 @@ packages:
 # its native binary, so vite and vitest need it allowed. Nothing else is.
 allowBuilds:
   esbuild: true
+  better-sqlite3: true

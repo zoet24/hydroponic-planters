@@ -7,10 +7,15 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "dev": "concurrently -n broker,backend,sim,web -c magenta,green,yellow,cyan \"pnpm dev:broker\" \"pnpm dev:backend\" \"pnpm dev:sim\" \"pnpm dev:web\"",
+    "dev:broker": "pnpm --filter @planter/simulator broker",
     "dev:backend": "pnpm --filter @planter/backend dev",
     "dev:sim": "pnpm --filter @planter/simulator dev",
-    "dev:web": "pnpm --filter @planter/web dev"
+    "dev:web": "pnpm --filter @planter/web dev",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }

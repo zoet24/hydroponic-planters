@@ -11,24 +11,39 @@ default here was 20.10) and **pnpm 12** via corepack.
 nvm use && corepack enable && pnpm install
 ```
 
-## Commands
+## Running it
+
+```bash
+pnpm dev
+```
+
+Starts four processes: the embedded MQTT broker, the backend, three simulated
+planters and the web app. Open <http://localhost:5173>. Nothing else needs
+installing — the broker is embedded (see `infra/mosquitto.conf` if you want real
+Mosquitto and `mosquitto_sub` for hardware debugging).
+
+From a phone on the same hotspot, use the Network address Vite prints. The API is
+proxied through the same port, so that one address is all the phone needs.
 
 ```bash
 pnpm test        # vitest across the workspace
 pnpm typecheck   # tsc --noEmit across the workspace
-pnpm dev:backend # tsx watch
-pnpm dev:sim     # tsx watch
-pnpm dev:web     # vite, bound to 0.0.0.0 so the phone can reach it
+pnpm dev:broker  # individually, if you want separate terminals
+pnpm dev:backend
+pnpm dev:sim
+pnpm dev:web
 ```
+
+Useful env vars: `SIM_COUNT` (default 3), `MQTT_URL`, `DB_PATH`, `SIM_ENABLED=false`.
 
 ## Packages
 
 | Package | Status |
 |---|---|
-| `@planter/shared` | pH rules engine + tests. zod schemas next. |
-| `@planter/backend` | stub — MQTT, SQLite, REST + SSE to come |
-| `@planter/simulator` | stub — virtual planters to come |
-| `@planter/web` | stub — React PWA to come |
+| `@planter/shared` | Topics, preset schema + safety bounds, pH engine, alerts, flow, nutrients |
+| `@planter/backend` | MQTT ingest, SQLite, SSE, REST API |
+| `@planter/simulator` | N virtual planters + embedded broker, faults, time acceleration |
+| `@planter/web` | React app — live view only so far, not yet built to the design |
 
 `shared` is consumed straight from TypeScript source (`exports` points at `src/index.ts`),
 so there is no build step: tsx, Vite and Vitest all transpile it. Type safety comes from

@@ -1,0 +1,87 @@
+/* Tokens from UI-HANDOFF.md. Layout here is provisional — the screens are not
+   built to the design yet, but the palette and type are the real ones. */
+:root {
+  --bg: #eef1ea;
+  --card: #fbfcf9;
+  --border: #d3dacd;
+  --hairline: #e1e6db;
+  --ink: #16241b;
+  --muted: #55645a;
+  --green: #2f7a4b;
+  --green-hover: #215a37;
+  --chip-green-bg: #ddebdd; --chip-green-text: #1d5a36;
+  --chip-amber-bg: #f6e7c8; --chip-amber-text: #7a4e08;
+  --chip-red-bg: #f5dad5;   --chip-red-text: #8c2a1c;
+  --chip-grey-bg: #e3e7df;  --chip-grey-text: #45524a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Figtree, system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+}
+
+h1, h2, .readout {
+  font-family: 'Bricolage Grotesque', Figtree, system-ui, sans-serif;
+  font-weight: 700;
+  margin: 0;
+}
+
+.page { max-width: 1280px; margin: 0 auto; padding: 24px; }
+@media (min-width: 900px) { .page { padding: 56px; } }
+
+.topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+h1 { font-size: 34px; }
+@media (min-width: 900px) { h1 { font-size: 44px; } }
+
+.grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+}
+.card h2 { font-size: 22px; }
+.sub { color: var(--muted); font-size: 15px; margin: 2px 0 14px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 11px; border-radius: 999px; font-size: 14px; font-weight: 500;
+}
+.chip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.chip.green { background: var(--chip-green-bg); color: var(--chip-green-text); }
+.chip.amber { background: var(--chip-amber-bg); color: var(--chip-amber-text); }
+.chip.red   { background: var(--chip-red-bg);   color: var(--chip-red-text); }
+.chip.grey  { background: var(--chip-grey-bg);  color: var(--chip-grey-text); }
+
+.readouts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.readout { font-size: 26px; line-height: 1.1; }
+.readout small { display: block; font-family: Figtree, sans-serif; font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 4px; }
+
+.alert { border-radius: 12px; padding: 10px 14px; font-size: 15px; margin-bottom: 8px; }
+.alert.critical { background: var(--chip-red-bg); color: #3b1108; }
+.alert.warning  { background: var(--chip-amber-bg); color: #3b2704; }
+.alert.ok { background: var(--chip-green-bg); color: var(--chip-green-text); }
+
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rule { border: 0; border-top: 1px solid var(--hairline); margin: 16px 0; }
+
+button, select {
+  font: inherit; font-weight: 600;
+  border-radius: 12px; padding: 10px 16px; min-height: 44px;
+  border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
+}
+button.primary { background: var(--green); border-color: var(--green); color: #fff; }
+button.primary:hover { background: var(--green-hover); border-color: var(--green-hover); }
+button.small { min-height: 36px; padding: 6px 12px; font-size: 14px; border-width: 1px; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+select { font-weight: 500; }
+
+.sync { font-size: 14px; color: var(--muted); }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
