@@ -9,17 +9,35 @@ export interface PlanterView {
   name: string;
   plantType: string | null;
   presetId: string | null;
+  preset: { id: string; name: string; plantType: string } | null;
   claimed: boolean;
   simulated: boolean;
   online: boolean;
   lastSeenAt: number | null;
-  desired: Record<string, number | boolean>;
-  reported: Record<string, number | boolean | string | undefined>;
+  desired: {
+    pumpEnable: boolean;
+    speedPercent: number;
+    intervalHours: number;
+    runtimeMinutes: number;
+  };
+  reported: {
+    waterTempC?: number;
+    lightLux?: number;
+    waterOk?: boolean;
+    pumpBlocked?: boolean;
+    pumpOn?: boolean;
+    speedPercent?: number;
+    pumpEnable?: boolean;
+    intervalHours?: number;
+    runtimeMinutes?: number;
+    lastRunHour?: string;
+    nextScheduledRuns?: string;
+  };
   pending: string[];
   syncing: boolean;
   syncStale: boolean;
   flowEstimateLpm: number;
-  alerts: { kind: string; severity: string; message: string }[];
+  alerts: { kind: string; severity: 'warning' | 'critical'; message: string }[];
 }
 
 type Connection = 'connecting' | 'live' | 'lost';

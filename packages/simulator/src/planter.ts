@@ -180,7 +180,10 @@ export class VirtualPlanter {
       return;
     }
 
-    const hour = new Date(now).getUTCHours();
+    // Local hours, not UTC: real ESPHome uses its configured timezone, and the UI
+    // computes "next pump" locally too. Using UTC here made them disagree by the
+    // UTC offset — an hour wrong all summer in the UK.
+    const hour = new Date(now).getHours();
     if (hour % this.intervalHours === 0 && hour !== this.lastRunHour) {
       this.lastRunHour = hour;
       this.pub(this.t.lastRunHour, `${String(hour).padStart(2, '0')}:00`);

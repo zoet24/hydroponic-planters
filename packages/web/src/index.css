@@ -1,5 +1,8 @@
-/* Tokens from UI-HANDOFF.md. Layout here is provisional — the screens are not
-   built to the design yet, but the palette and type are the real ones. */
+/*
+ * Tokens and components from UI-HANDOFF.md and the Main artboard of the
+ * "Smart Planter app" design canvas. Values here are the design's, not
+ * approximations — check against the artboard before changing one.
+ */
 :root {
   --bg: #eef1ea;
   --card: #fbfcf9;
@@ -9,10 +12,14 @@
   --muted: #55645a;
   --green: #2f7a4b;
   --green-hover: #215a37;
-  --chip-green-bg: #ddebdd; --chip-green-text: #1d5a36;
-  --chip-amber-bg: #f6e7c8; --chip-amber-text: #7a4e08;
-  --chip-red-bg: #f5dad5;   --chip-red-text: #8c2a1c;
-  --chip-grey-bg: #e3e7df;  --chip-grey-text: #45524a;
+
+  --chip-green-bg: #ddebdd; --chip-green-text: #1d5a36; --chip-green-dot: #2f7a4b;
+  --chip-amber-bg: #f6e7c8; --chip-amber-text: #7a4e08; --chip-amber-dot: #b7791f;
+  --chip-red-bg:   #f5dad5; --chip-red-text:   #8c2a1c; --chip-red-dot:   #b3402f;
+  --chip-grey-bg:  #e3e7df; --chip-grey-text:  #45524a; --chip-grey-dot:  #7b887f;
+
+  --display: 'Bricolage Grotesque', Georgia, serif;
+  --body: 'Figtree', system-ui, -apple-system, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -21,67 +28,162 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: Figtree, system-ui, -apple-system, sans-serif;
+  font-family: var(--body);
   font-size: 16px;
+  -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, .readout {
-  font-family: 'Bricolage Grotesque', Figtree, system-ui, sans-serif;
+/* ── Page shell ─────────────────────────────────────────────── */
+
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;                 /* phone artboards use 24 */
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+@media (min-width: 900px) {
+  .page { padding: 40px 56px; gap: 32px; }   /* desktop artboard */
+}
+
+.masthead { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.masthead__right { display: flex; align-items: center; gap: 12px; }
+
+.wordmark {
+  font-family: var(--display);
   font-weight: 700;
-  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.01em;
 }
 
-.page { max-width: 1280px; margin: 0 auto; padding: 24px; }
-@media (min-width: 900px) { .page { padding: 56px; } }
+.connection { font-size: 14px; color: var(--muted); }
 
-.topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
-h1 { font-size: 34px; }
-@media (min-width: 900px) { h1 { font-size: 44px; } }
+h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 900px) { h1 { font-size: 48px; } }
 
-.grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.lede { margin: 10px 0 0; font-size: 17px; color: var(--muted); }
+@media (min-width: 900px) { .lede { font-size: 18px; } }
+
+/* ── Buttons ────────────────────────────────────────────────── */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;                  /* 52 on phone, 48 on desktop */
+  padding: 0 22px;
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+@media (min-width: 900px) { .button { height: 48px; } }
+
+.button--primary { background: var(--green); border-color: var(--green); color: #fff; }
+.button--primary:hover { background: var(--green-hover); border-color: var(--green-hover); color: #fff; }
+
+/* ── Cards ──────────────────────────────────────────────────── */
+
+.planter-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 700px)  { .planter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1040px) { .planter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 .card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 24px;
+  color: var(--ink);
 }
-.card h2 { font-size: 22px; }
-.sub { color: var(--muted); font-size: 15px; margin: 2px 0 14px; }
+.card--link { text-decoration: none; }
+.card--link:hover { border-color: var(--green); }
+.card--link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.card__title { font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1.1; }
+.card__sub { margin: 6px 0 0; font-size: 15px; color: var(--muted); }
+
+.card__cta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--green);
+}
+
+.empty { align-items: flex-start; gap: 12px; }
+.empty .button { margin-top: 8px; }
+
+/* ── Chips ──────────────────────────────────────────────────── */
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
 .chip {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 5px 11px; border-radius: 999px; font-size: 14px; font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
 }
-.chip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-.chip.green { background: var(--chip-green-bg); color: var(--chip-green-text); }
-.chip.amber { background: var(--chip-amber-bg); color: var(--chip-amber-text); }
-.chip.red   { background: var(--chip-red-bg);   color: var(--chip-red-text); }
-.chip.grey  { background: var(--chip-grey-bg);  color: var(--chip-grey-text); }
+.chip__dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 
-.readouts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
-.readout { font-size: 26px; line-height: 1.1; }
-.readout small { display: block; font-family: Figtree, sans-serif; font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 4px; }
+.chip--green { background: var(--chip-green-bg); color: var(--chip-green-text); }
+.chip--green .chip__dot { background: var(--chip-green-dot); }
+.chip--amber { background: var(--chip-amber-bg); color: var(--chip-amber-text); }
+.chip--amber .chip__dot { background: var(--chip-amber-dot); }
+.chip--red   { background: var(--chip-red-bg);   color: var(--chip-red-text); }
+.chip--red   .chip__dot { background: var(--chip-red-dot); }
+.chip--grey  { background: var(--chip-grey-bg);  color: var(--chip-grey-text); }
+.chip--grey  .chip__dot { background: var(--chip-grey-dot); }
 
-.alert { border-radius: 12px; padding: 10px 14px; font-size: 15px; margin-bottom: 8px; }
-.alert.critical { background: var(--chip-red-bg); color: #3b1108; }
-.alert.warning  { background: var(--chip-amber-bg); color: #3b2704; }
-.alert.ok { background: var(--chip-green-bg); color: var(--chip-green-text); }
+/* ── Readouts ───────────────────────────────────────────────── */
 
-.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.rule { border: 0; border-top: 1px solid var(--hairline); margin: 16px 0; }
+.readouts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.readout__label { font-size: 13px; color: var(--muted); }
 
-button, select {
-  font: inherit; font-weight: 600;
-  border-radius: 12px; padding: 10px 16px; min-height: 44px;
-  border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
+/*
+ * 26px is the design's size and holds from the 2-column breakpoint up. Below
+ * that, three columns in a 375px viewport leaves ~85px per cell, where 26px
+ * overflows — so the value shrinks rather than wrapping mid-unit. Home is only
+ * drawn at 1280, so the phone sizes are a judgement call.
+ */
+.readout__value {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 20px;
+  white-space: nowrap;
 }
-button.primary { background: var(--green); border-color: var(--green); color: #fff; }
-button.primary:hover { background: var(--green-hover); border-color: var(--green-hover); }
-button.small { min-height: 36px; padding: 6px 12px; font-size: 14px; border-width: 1px; }
-button:disabled { opacity: 0.45; cursor: not-allowed; }
-select { font-weight: 500; }
+@media (min-width: 420px) { .readout__value { font-size: 24px; } }
+@media (min-width: 700px) { .readout__value { font-size: 26px; } }
+.readout__value--muted { color: var(--muted); }
 
-.sync { font-size: 14px; color: var(--muted); }
-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+/* "No data" and "Unknown" are longer than any real reading and are placeholders
+   rather than data, so they give up a couple of pixels on the narrowest phones
+   instead of pushing past the cell. */
+@media (max-width: 419px) { .readout__value--muted { font-size: 18px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
