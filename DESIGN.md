@@ -74,7 +74,7 @@ The simulator and the real device are **indistinguishable to the backend** — s
 | Pump master enable | — | doesn't exist |
 | "Run pump now" switch | `button:` | **button**, payload `PRESS` |
 | Interval hours | ✅ `number`, 1–24 | silently snaps to a divisor of 24 (see below) |
-| Runtime minutes | ✅ `number`, 1–30 | brief said max 15 |
+| Runtime minutes | ✅ `number`, 1–30 | matched in the schema; duty cycle is the real cap |
 | Joins your hotspot | `wifi:` has `ap:` only | no station credentials |
 
 **The important scheduling detail:** `on_value` for the interval number reassigns `id(interval_hours)` to the nearest divisor of 24, but because the number is `optimistic: true` the entity still reports **the value you sent**. Ask for 5 hours, the number says 5, the pump runs every 4. The reported state lies — which is exactly the failure mode idea #1 is supposed to catch. Two fixes, do both:
@@ -354,7 +354,7 @@ If a field doesn't confirm within 10 s, mark it `stale` (amber, not red) and off
 export const SAFETY = {
   pump: {
     intervalHoursAllowed: [1, 2, 3, 4, 6, 8, 12, 24],   // divisors of 24 — firmware constraint
-    runtimeMinutes: { min: 1,   max: 15 },
+    runtimeMinutes: { min: 1,   max: 30 },   // mirrors the firmware; duty cycle is the real cap
     speedPercent:   { min: 20,  max: 100 },   // <20% stalls the pump
     maxDutyCycle:   0.25,                      // runtime / (interval * 60)
   },
@@ -372,7 +372,7 @@ export const Preset = z.object({
     // so only allow values the device will actually honour: 1,2,3,4,6,8,12,24
     intervalHours:  z.number().int().min(1).max(24)
                      .refine(h => 24 % h === 0, 'interval must divide 24 evenly'),
-    runtimeMinutes: z.number().min(1).max(15),   // firmware allows 30; 15 is our tighter cap
+    runtimeMinutes: z.number().min(1).max(30),   // mirrors the firmware's own limit
     speedPercent:   z.number().int().min(20).max(100),
   }).refine(p => p.runtimeMinutes / (p.intervalHours * 60) <= SAFETY.pump.maxDutyCycle,
             'pump duty cycle above 25%'),
@@ -390,6 +390,8 @@ export const Preset = z.object({
   }),
 });
 ```
+
+**Why `runtimeMinutes` goes to 30, not 15.** An earlier draft capped it at 15 as a "tighter" bound. That was a mistake: with intervals starting at 1 h, 15/60 is exactly 0.25, so the duty-cycle rule could never fire — the headline safety rule was unreachable, and it also forbade harmless presets like 30 min every 12 h. Mirroring the firmware's own 1–30 limit makes the duty cycle the binding constraint, which is what we actually mean. Caught by a test that was passing for the wrong reason.
 
 The **duty-cycle refinement is your best safety slide**. A model asked for a thirsty plant will happily propose "every hour for 20 minutes"; that's a pump running a third of its life and a flooded desk. Deterministic code catches it regardless of what the model said or how confidently it said it.
 
