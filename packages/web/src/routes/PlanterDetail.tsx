@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Outlet, useParams } from 'react-router-dom';
 import { LineChart, PumpStrip } from '../components/Chart';
 import { Chip } from '../components/Chip';
 import { EventIcon } from '../components/EventIcon';
@@ -44,6 +44,7 @@ export function PlanterDetail() {
       <Config planter={planter} />
       <History planter={planter} rangeMs={rangeMs} onRange={setRangeMs} />
       <Timeline planterId={planter.id} />
+      <Outlet />
     </div>
   );
 }

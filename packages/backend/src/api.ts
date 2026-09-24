@@ -99,15 +99,14 @@ export async function routes(app: FastifyInstance): Promise<void> {
     const preset = resolvePreset(record.presetId);
     if (!preset) return reply.code(409).send({ error: 'assign a preset before checking pH' });
 
-    const last = db
-      .prepare('SELECT ts FROM ph_checkins WHERE planter_id = ? ORDER BY ts DESC LIMIT 1')
-      .get(id) as { ts: number } | undefined;
-
     const now = Date.now();
     const result = phAdvice({
       ph,
       range: { min: preset.ph.targetMin, max: preset.ph.targetMax },
-      readingAgeHours: last ? (now - last.ts) / 3_600_000 : 0,
+      // Zero, not the age of the previous check-in: this reading is being taken
+      // now. Passing the old one's age made a fresh reading come back `stale`
+      // whenever the last check was a while ago, which is the opposite of true.
+      readingAgeHours: 0,
       checkIntervalDays: preset.ph.checkIntervalDays,
     });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { niceDomain, PLOT, ticksFor, trimZero, xAt, yAt } from './chart';
+import { niceDomain, phScaleX, PLOT, stepPh, ticksFor, trimZero, xAt, yAt } from './chart';
 
 describe('niceDomain', () => {
   it('fits a real temperature spread onto the axis the design draws', () => {
@@ -61,4 +61,37 @@ describe('trimZero', () => {
   it.each([[21, '21'], [21.4, '21.4'], [0, '0'], [6000, '6000']])('formats %p as %p', (n, out) =>
     expect(trimZero(n)).toBe(out),
   );
+});
+
+describe('phScaleX', () => {
+  it('reproduces the artboard geometry exactly', () => {
+    // The target band for basil is drawn at x=86.3 with width 60.4, and a
+    // reading of 6.8 sits at x=198.5.
+    expect(phScaleX(5.5)).toBe(86.3);
+    expect(phScaleX(6.2) - phScaleX(5.5)).toBeCloseTo(60.4, 1);
+    expect(phScaleX(6.8)).toBe(198.5);
+  });
+
+  it('pins the ends of the track', () => {
+    expect(phScaleX(4.5)).toBe(0);
+    expect(phScaleX(8)).toBe(302);
+  });
+
+  it('keeps an out-of-scale reading on the bar', () => {
+    expect(phScaleX(3)).toBe(0);
+    expect(phScaleX(9)).toBe(302);
+  });
+});
+
+describe('stepPh', () => {
+  it('steps by a tenth without floating point drift', () => {
+    let ph = 7;
+    for (let i = 0; i < 5; i++) ph = stepPh(ph, -0.1);
+    expect(ph).toBe(6.5);
+  });
+
+  it('stays inside what the engine will accept, so a stepper cannot make an invalid reading', () => {
+    expect(stepPh(3, -0.1)).toBe(3);
+    expect(stepPh(9, 0.1)).toBe(9);
+  });
 });

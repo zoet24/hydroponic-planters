@@ -54,3 +54,20 @@ export const trimZero = (n: number): string =>
 
 export const timeLabel = (ts: number): string =>
   new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+/**
+ * The pH scale on the check-in screen: 4.5 to 8.0 across a 302 unit track,
+ * taken from the PhCheck artboard.
+ */
+export const PH_SCALE = { min: 4.5, max: 8, width: 302 } as const;
+
+/** Position on the track. Clamped, so a reading off the ends stays on the bar. */
+export function phScaleX(ph: number): number {
+  const clamped = Math.min(PH_SCALE.max, Math.max(PH_SCALE.min, ph));
+  const fraction = (clamped - PH_SCALE.min) / (PH_SCALE.max - PH_SCALE.min);
+  return Math.round(fraction * PH_SCALE.width * 10) / 10;
+}
+
+/** Step a reading by ±0.1 without accumulating floating point drift. */
+export const stepPh = (ph: number, delta: number): number =>
+  Math.round(Math.min(9, Math.max(3, ph + delta)) * 10) / 10;

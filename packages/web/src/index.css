@@ -590,3 +590,100 @@ h1 {
 .preset-card--ai .button { margin-top: auto; }
 
 .presets__foot { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+/* ── pH check ───────────────────────────────────────────────── */
+
+.screen__subtitle { margin: 0; font-size: 14px; color: var(--muted); }
+
+.ph-reading { gap: 12px; padding: 20px; }
+.ph-reading__label { font-size: 15px; font-weight: 600; }
+.ph-reading__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ph-reading__value {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 64px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;  /* stops the digits shuffling as you step */
+}
+
+.ph-step {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ph-step:hover { background: var(--chip-grey-bg); }
+.ph-step:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+.ph-scale-card { gap: 8px; padding: 20px; }
+
+.ph-advice { display: flex; flex-direction: column; gap: 10px; padding: 20px; border-radius: 16px; }
+.ph-advice__chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 10px;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ph-advice__text { margin: 0; font-size: 17px; line-height: 1.5; }
+
+.ph-advice--ok { background: var(--chip-green-bg); }
+.ph-advice--ok .ph-advice__chip { color: var(--chip-green-text); }
+.ph-advice--ok .ph-advice__chip .chip__dot { background: var(--chip-green-dot); }
+.ph-advice--ok .ph-advice__text { color: var(--chip-green-text); }
+
+.ph-advice--warn { background: var(--chip-amber-bg); }
+.ph-advice--warn .ph-advice__chip { color: var(--chip-amber-text); }
+.ph-advice--warn .ph-advice__chip .chip__dot { background: var(--chip-amber-dot); }
+.ph-advice--warn .ph-advice__text { color: #3b2704; }
+
+.ph-advice--bad { background: var(--chip-red-bg); }
+.ph-advice--bad .ph-advice__chip { color: var(--chip-red-text); }
+.ph-advice--bad .ph-advice__chip .chip__dot { background: var(--chip-red-dot); }
+.ph-advice--bad .ph-advice__text { color: #3b1108; }
+
+.ph-foot { display: flex; flex-direction: column; gap: 10px; }
+.ph-foot__note { text-align: center; }
+
+/* ── Modal sheet (pH check) ─────────────────────────────────── */
+
+.sheet {
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+  color: var(--ink);
+  /* Phone: fills the screen, as drawn. */
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+}
+.sheet::backdrop { background: rgb(22 36 27 / 40%); }
+.screen--sheet { min-height: 100%; max-width: 460px; }
+
+@media (min-width: 900px) {
+  /* Desktop: a centred card over the dashboard. */
+  .sheet {
+    width: min(460px, calc(100vw - 48px));
+    height: auto;
+    max-height: calc(100dvh - 48px);
+    margin: auto;
+    border-radius: 16px;
+    overflow: auto;
+  }
+  .screen--sheet { min-height: 0; }
+}
