@@ -43,6 +43,8 @@ export const PresetShape = z.object({
   id: z.string().min(1).max(40),
   name: z.string().min(1).max(40),
   plantType: z.string().min(1).max(40),
+  /** One line for the preset card. Optional: a proposal without one still parses. */
+  description: z.string().min(1).max(80).optional(),
   pump: z.object({
     intervalHours: z.number().int().min(1).max(24),
     runtimeMinutes: z

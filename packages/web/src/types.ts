@@ -44,6 +44,7 @@ export interface Preset {
   id: string;
   name: string;
   plantType: string;
+  description?: string;
   pump: { intervalHours: number; runtimeMinutes: number; speedPercent: number };
   light: { minLux: number };
   waterTempC: { min: number; max: number };

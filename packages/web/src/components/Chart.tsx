@@ -16,6 +16,7 @@ export function LineChart({
   colour,
   format,
   zeroFloor = false,
+  loading = false,
   title,
 }: {
   points: Point[];
@@ -24,6 +25,7 @@ export function LineChart({
   colour: string;
   format: (value: number) => string;
   zeroFloor?: boolean;
+  loading?: boolean;
   title: string;
 }) {
   const [hover, setHover] = useState<Point | null>(null);
@@ -60,13 +62,17 @@ export function LineChart({
         ))}
       </g>
 
-      <g fontSize="12" fill="var(--muted)" fontFamily="Figtree, sans-serif">
-        {ticksFor(domain).map((value, i) => (
-          <text key={value} x="0" y={[24, 64, 104][i]}>
-            {format(value)}
-          </text>
-        ))}
-      </g>
+      {/* No axis labels without data: an empty series otherwise renders a
+          plausible-looking 0-to-1 scale, which reads as real measurements. */}
+      {points.length > 0 && (
+        <g fontSize="12" fill="var(--muted)" fontFamily="Figtree, sans-serif">
+          {ticksFor(domain).map((value, i) => (
+            <text key={value} x="0" y={[24, 64, 104][i]}>
+              {format(value)}
+            </text>
+          ))}
+        </g>
+      )}
 
       {points.length > 0 ? (
         <polyline
@@ -79,7 +85,7 @@ export function LineChart({
         />
       ) : (
         <text x={PLOT.x0 + 8} y="64" fontSize="13" fill="var(--muted)" fontFamily="Figtree, sans-serif">
-          No readings yet
+          {loading ? 'Loading…' : 'No readings yet'}
         </text>
       )}
 

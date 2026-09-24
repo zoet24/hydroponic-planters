@@ -15,6 +15,13 @@ describe('built-in presets', () => {
     for (const p of BUILTIN_PRESETS) expect(clampToSafety(p).warnings, p.id).toEqual([]);
   });
 
+  it('all carry a one-line description for the preset card', () => {
+    for (const p of BUILTIN_PRESETS) {
+      expect(p.description, p.id).toBeTruthy();
+      expect(p.description!.length, p.id).toBeLessThanOrEqual(80);
+    }
+  });
+
   it('have unique ids', () => {
     expect(new Set(BUILTIN_PRESETS.map((p) => p.id)).size).toBe(BUILTIN_PRESETS.length);
   });

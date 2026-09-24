@@ -280,18 +280,22 @@ function History({
   const [light, setLight] = useState<Point[]>([]);
   const [runs, setRuns] = useState<number[]>([]);
   const [to, setTo] = useState(() => Date.now());
+  const [loading, setLoading] = useState(true);
 
   // Refetch on range change, and again whenever live state moves on.
   useEffect(() => {
     const now = Date.now();
     const from = now - rangeMs;
     setTo(now);
+    setLoading(true);
 
     const readings = (metric: string) =>
       api<Point[]>(`/api/planters/${p.id}/readings?metric=${metric}&from=${from}&to=${now}`);
 
-    void readings('water_temp_c').then(setTemp).catch(() => setTemp([]));
-    void readings('light_lux').then(setLight).catch(() => setLight([]));
+    void Promise.all([
+      readings('water_temp_c').then(setTemp).catch(() => setTemp([])),
+      readings('light_lux').then(setLight).catch(() => setLight([])),
+    ]).finally(() => setLoading(false));
     void api<PlanterEvent[]>(`/api/planters/${p.id}/events?limit=500&from=${from}`)
       .then((events) =>
         setRuns(events.filter((e) => e.type === 'pump_run' && e.payload?.on === true).map((e) => e.ts)),
@@ -332,6 +336,7 @@ function History({
           to={to}
           colour="var(--green)"
           format={(v) => `${trimZero(v)} °C`}
+          loading={loading}
           title={`Water temperature over the last ${rangeMs / 3_600_000} hours`}
         />
         <LineChart
@@ -341,6 +346,7 @@ function History({
           colour="var(--chip-amber-dot)"
           format={luxLabel}
           zeroFloor
+          loading={loading}
           title={`Light level over the last ${rangeMs / 3_600_000} hours`}
         />
         <PumpStrip runs={runs} from={from} to={to} />
