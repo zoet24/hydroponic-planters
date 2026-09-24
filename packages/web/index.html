@@ -9,6 +9,17 @@
     <link rel="stylesheet" href="/fonts/fonts.css" />
     <link rel="preload" as="font" type="font/woff2" href="/fonts/figtree-400-latin.woff2" crossorigin />
     <link rel="preload" as="font" type="font/woff2" href="/fonts/bricolage-grotesque-700-latin.woff2" crossorigin />
+
+    <!-- Add to Home Screen. There is deliberately no service worker: the app is
+         served over plain HTTP on a hotspot, which is not a secure context, so
+         one could not register. This gives the icon, the name and fullscreen. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#2F7A4B" />
+    <!-- iOS ignores the manifest's display mode and uses these instead. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Planters" />
   </head>
   <body>
     <div id="root"></div>

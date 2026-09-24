@@ -42,8 +42,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: 28px;
+  /*
+   * A container, not a media-query subject. Presenter mode zooms the body, and
+   * media queries keep reporting the unzoomed viewport — so a zoomed page kept
+   * its three-column layout in two columns' worth of space and the readouts
+   * collided. Container queries measure the element, so they follow the zoom.
+   */
+  container: page / inline-size;
 }
-@media (min-width: 900px) {
+@container page (min-width: 900px) {
   .page { padding: 40px 56px; gap: 32px; }   /* desktop artboard */
 }
 
@@ -67,10 +74,10 @@ h1 {
   line-height: 1.05;
   letter-spacing: -0.02em;
 }
-@media (min-width: 900px) { h1 { font-size: 48px; } }
+@container page (min-width: 900px) { h1 { font-size: 48px; } }
 
 .lede { margin: 10px 0 0; font-size: 17px; color: var(--muted); }
-@media (min-width: 900px) { .lede { font-size: 18px; } }
+@container page (min-width: 900px) { .lede { font-size: 18px; } }
 
 /* ── Buttons ────────────────────────────────────────────────── */
 
@@ -89,7 +96,7 @@ h1 {
   text-decoration: none;
   cursor: pointer;
 }
-@media (min-width: 900px) { .button { height: 48px; } }
+@container page (min-width: 900px) { .button { height: 48px; } }
 
 .button--primary { background: var(--green); border-color: var(--green); color: #fff; }
 .button--primary:hover { background: var(--green-hover); border-color: var(--green-hover); color: #fff; }
@@ -101,10 +108,13 @@ h1 {
   gap: 24px;
   grid-template-columns: 1fr;
 }
-@media (min-width: 700px)  { .planter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1040px) { .planter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container page (min-width: 700px)  { .planter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 1040px) { .planter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 .card {
+  /* Cards size their own type from their own width, so a card in a two-column
+     layout and one in three columns each get a sensible readout size. */
+  container: card / inline-size;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -164,10 +174,10 @@ h1 {
 .readout__label { font-size: 13px; color: var(--muted); }
 
 /*
- * 26px is the design's size and holds from the 2-column breakpoint up. Below
- * that, three columns in a 375px viewport leaves ~85px per cell, where 26px
- * overflows — so the value shrinks rather than wrapping mid-unit. Home is only
- * drawn at 1280, so the phone sizes are a judgement call.
+ * 26px is the design's size, used whenever the card is wide enough to hold it.
+ * Three columns of 26px in a narrow card overflow, so it steps down rather than
+ * wrapping mid-unit. Keyed to the card, not the viewport, so it stays right
+ * under presenter zoom.
  */
 .readout__value {
   font-family: var(--display);
@@ -175,14 +185,13 @@ h1 {
   font-size: 20px;
   white-space: nowrap;
 }
-@media (min-width: 420px) { .readout__value { font-size: 24px; } }
-@media (min-width: 700px) { .readout__value { font-size: 26px; } }
+@container card (min-width: 300px) { .readout__value { font-size: 26px; } }
 .readout__value--muted { color: var(--muted); }
 
 /* "No data" and "Unknown" are longer than any real reading and are placeholders
-   rather than data, so they give up a couple of pixels on the narrowest phones
+   rather than data, so they give up a couple of pixels in a narrow card
    instead of pushing past the cell. */
-@media (max-width: 419px) { .readout__value--muted { font-size: 18px; } }
+@container card (max-width: 299px) { .readout__value--muted { font-size: 18px; } }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -352,7 +361,7 @@ h1 {
 .detail-head { display: flex; flex-direction: column; gap: 16px; }
 .detail-head__row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .detail-head h1 { font-size: 34px; }
-@media (min-width: 900px) { .detail-head h1 { font-size: 52px; } }
+@container page (min-width: 900px) { .detail-head h1 { font-size: 52px; } }
 
 .backlink {
   display: inline-flex;
@@ -390,13 +399,13 @@ h1 {
 .section { display: flex; flex-direction: column; gap: 16px; }
 .section__head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
 .section h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 24px; }
-@media (min-width: 900px) { .section h2 { font-size: 30px; } }
+@container page (min-width: 900px) { .section h2 { font-size: 30px; } }
 
 /* ── Live stat cards ────────────────────────────────────────── */
 
 .stat-grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
-@media (min-width: 620px)  { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1040px) { .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container page (min-width: 620px)  { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 1040px) { .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 .stat { gap: 10px; }
 .stat__label { font-size: 17px; color: var(--muted); font-weight: 500; }
@@ -407,7 +416,7 @@ h1 {
   line-height: 1;
   letter-spacing: -0.02em;
 }
-@media (min-width: 620px) { .stat__value { font-size: 64px; } }
+@container card (min-width: 220px) { .stat__value { font-size: 64px; } }
 .stat__unit { font-size: 28px; font-weight: 600; color: var(--muted); margin-left: 5px; }
 .stat .chip { align-self: flex-start; padding: 5px 14px 5px 12px; font-size: 15px; }
 .stat .chip__dot { width: 9px; height: 9px; }
@@ -416,7 +425,7 @@ h1 {
 /* ── Config table ───────────────────────────────────────────── */
 
 .config { gap: 20px; padding: 24px; }
-@media (min-width: 900px) { .config { padding: 28px; } }
+@container page (min-width: 900px) { .config { padding: 28px; } }
 .config__explainer { margin: 0; font-size: 17px; color: var(--muted); line-height: 1.45; }
 .config__table { display: flex; flex-direction: column; }
 
@@ -429,7 +438,7 @@ h1 {
   border-top: 1px solid var(--hairline);
   font-size: 18px;
 }
-@media (min-width: 900px) { .config__row { font-size: 20px; } }
+@container card (min-width: 720px) { .config__row { font-size: 20px; } }
 .config__row--head {
   border-top: 0;
   padding: 8px 0 12px;
@@ -446,7 +455,7 @@ h1 {
 
 /* Below the desktop breakpoint the four columns stop fitting: each row becomes
    a labelled block rather than shrinking the numbers into unreadability. */
-@media (max-width: 719px) {
+@container card (max-width: 719px) {
   .config__row { grid-template-columns: 1fr 1fr; row-gap: 6px; }
   .config__row--head { display: none; }
   .config__setting { grid-column: 1 / -1; }
@@ -479,7 +488,7 @@ h1 {
 .segmented button[aria-pressed='true'] { background: var(--ink); color: #fff; }
 
 .history { gap: 14px; padding: 24px; }
-@media (min-width: 900px) { .history { padding: 28px; } }
+@container page (min-width: 900px) { .history { padding: 28px; } }
 .legend { display: flex; flex-wrap: wrap; gap: 24px; font-size: 16px; color: var(--muted); }
 .legend > span { display: inline-flex; align-items: center; gap: 8px; }
 .legend__line { width: 18px; height: 5px; border-radius: 3px; }
@@ -489,7 +498,7 @@ h1 {
 /* ── Timeline ───────────────────────────────────────────────── */
 
 .timeline { padding: 12px 24px; gap: 0; }
-@media (min-width: 900px) { .timeline { padding: 12px 28px; } }
+@container page (min-width: 900px) { .timeline { padding: 12px 28px; } }
 .timeline__row { display: flex; align-items: center; gap: 16px; padding: 14px 0; font-size: 17px; }
 .timeline__row + .timeline__row { border-top: 1px solid var(--hairline); }
 .timeline__time { width: 150px; flex-shrink: 0; color: var(--muted); font-size: 16px; }
@@ -508,7 +517,7 @@ h1 {
 .timeline__dot--red   { background: var(--chip-red-bg); color: var(--chip-red-text); }
 .timeline__dot--grey  { background: var(--chip-grey-bg); color: var(--chip-grey-text); }
 
-@media (max-width: 619px) {
+@container page (max-width: 619px) {
   .timeline__row { flex-wrap: wrap; }
   .timeline__time { width: auto; }
 }
@@ -517,12 +526,12 @@ h1 {
 
 .presets__intro { margin-top: -12px; }
 .presets__intro h1 { font-size: 34px; }
-@media (min-width: 900px) { .presets__intro h1 { font-size: 44px; } }
+@container page (min-width: 900px) { .presets__intro h1 { font-size: 44px; } }
 .presets__intro .lede { max-width: 720px; }
 
 .preset-grid { display: grid; gap: 24px; grid-template-columns: 1fr; }
-@media (min-width: 640px)  { .preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1040px) { .preset-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container page (min-width: 640px)  { .preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container page (min-width: 1040px) { .preset-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 .preset-card {
   gap: 14px;
@@ -737,3 +746,36 @@ h1 {
 
 .devdrawer__note { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 .devdrawer__note code { background: var(--chip-grey-bg); border-radius: 4px; padding: 1px 4px; }
+
+/* ── Presenter mode ─────────────────────────────────────────── */
+
+/*
+ * Every size in this stylesheet is in px, taken from the artboards, so scaling
+ * the root font size would move nothing. `zoom` scales layout and type together
+ * and leaves the design's proportions intact.
+ */
+:root[data-presenter='true'] body { zoom: 1.35; }
+
+/* Secondary chrome the audience does not need. Data stays. */
+:root[data-presenter='true'] .connection,
+:root[data-presenter='true'] .fineprint,
+:root[data-presenter='true'] .devdrawer { display: none; }
+
+/* ── New planter arriving (the claim moment) ────────────────── */
+
+/*
+ * A planter appearing for the first time rings for two seconds. Without it the
+ * audience is hunting for a change in a grid of near-identical cards.
+ */
+@keyframes planter-arrive {
+  0%   { box-shadow: 0 0 0 0 rgb(47 122 75 / 0%); }
+  15%  { box-shadow: 0 0 0 6px rgb(47 122 75 / 45%); }
+  100% { box-shadow: 0 0 0 10px rgb(47 122 75 / 0%); }
+}
+
+.card--arriving { animation: planter-arrive 2s ease-out 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Still mark it, just without the pulse. */
+  .card--arriving { animation: none; border-color: var(--green); }
+}

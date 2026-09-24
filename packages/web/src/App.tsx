@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { DevDrawer, DevDrawerProvider } from './components/DevDrawer';
+import { usePresenterMode } from './presenter';
 import { PlantersProvider } from './PlantersContext';
 import { AddPlanter } from './routes/AddPlanter';
 import { Claim } from './routes/Claim';
@@ -23,6 +24,8 @@ export function App() {
 
 /** Inside the router and both providers, so every hook is available. */
 function Shell() {
+  usePresenterMode();
+
   return (
     <>
       <Routes>

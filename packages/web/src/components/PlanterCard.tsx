@@ -3,12 +3,18 @@ import { Chip } from './Chip';
 import { describePlanter, isSyncing, luxLabel, pumpReadout, relativeTime, tempLabel } from '../lib/format';
 import type { PlanterView } from '../types';
 
-export function PlanterCard({ planter: p }: { planter: PlanterView }) {
+export function PlanterCard({
+  planter: p,
+  arriving = false,
+}: {
+  planter: PlanterView;
+  arriving?: boolean;
+}) {
   const pump = pumpReadout(p);
   const noData = !p.online;
 
   return (
-    <Link to={`/planters/${p.id}`} className="card card--link">
+    <Link to={`/planters/${p.id}`} className={`card card--link${arriving ? ' card--arriving' : ''}`}>
       <div>
         <div className="card__title">{p.name}</div>
         <div className="card__sub">{describePlanter(p)}</div>

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDevDrawer, useLongPress } from '../components/DevDrawer';
 import { PlanterCard } from '../components/PlanterCard';
@@ -8,6 +9,7 @@ export function Home() {
   const { planters, connection } = usePlanters();
   const dev = useDevDrawer();
   const longPress = useLongPress(() => dev.setOpen(true));
+  const arriving = useArrivals(planters.map((p) => p.id));
 
   return (
     <div className="page">
@@ -37,12 +39,49 @@ export function Home() {
       {planters.length === 0 ? <EmptyState /> : (
         <div className="planter-grid">
           {planters.map((p) => (
-            <PlanterCard key={p.id} planter={p} />
+            <PlanterCard key={p.id} planter={p} arriving={arriving.has(p.id)} />
           ))}
         </div>
       )}
     </div>
   );
+}
+
+/**
+ * Ids that turned up after the first snapshot, for two seconds each.
+ *
+ * The first snapshot is treated as already known — otherwise every planter
+ * would ring on page load, which tells you nothing.
+ */
+function useArrivals(ids: string[]): Set<string> {
+  const seen = useRef<Set<string> | null>(null);
+  const [arriving, setArriving] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (ids.length === 0) return;
+
+    if (seen.current === null) {
+      seen.current = new Set(ids);
+      return;
+    }
+
+    const fresh = ids.filter((id) => !seen.current!.has(id));
+    if (fresh.length === 0) return;
+
+    for (const id of fresh) seen.current.add(id);
+    setArriving((prev) => new Set([...prev, ...fresh]));
+
+    const timer = setTimeout(() => {
+      setArriving((prev) => {
+        const next = new Set(prev);
+        for (const id of fresh) next.delete(id);
+        return next;
+      });
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [ids.join(',')]);
+
+  return arriving;
 }
 
 /** Not drawn on the canvas. Built to the same tokens. */

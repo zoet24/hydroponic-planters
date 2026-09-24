@@ -52,19 +52,6 @@ async function main(): Promise<void> {
   console.log('Wiping history…');
   db.exec('DELETE FROM readings; DELETE FROM events; DELETE FROM ph_checkins;');
 
-  console.log('Setting the cast…');
-  for (const role of CAST) {
-    const known = planters.some((p) => p.id === role.id);
-    if (!known) continue;
-
-    const preset = resolvePreset(role.presetId);
-    if (!preset) continue;
-
-    db.prepare(
-      'UPDATE planters SET name = ?, plant_type = ?, preset_id = ?, desired_json = ? WHERE id = ?',
-    ).run(role.name, preset.plantType, preset.id, JSON.stringify(presetToDesired(preset)), role.id);
-    console.log(`  ${role.id}  ${role.name} (${preset.name})`);
-  }
 
   if (values.keepClaims) {
     console.log('Leaving claim state alone (--keepClaims).');
@@ -81,15 +68,37 @@ async function main(): Promise<void> {
     }
   }
 
+
+  // The backend keeps planters in memory and would overwrite everything above
+  // on the next MQTT message. Tell it to re-read.
+  const notified = await notifyBackend();
+
+  console.log('Setting the cast…');
+  for (const role of CAST) {
+    if (!planters.some((p) => p.id === role.id)) continue;
+    const preset = resolvePreset(role.presetId);
+    if (!preset) continue;
+
+    if (notified) {
+      // Through the API, not the database: applying a preset has to publish the
+      // MQTT commands too. Writing desired state straight to SQLite left every
+      // planter showing "Not confirmed", because nothing was ever sent.
+      await call(`/api/planters/${role.id}`, 'PATCH', { name: role.name });
+      await call(`/api/planters/${role.id}/preset`, 'POST', { presetId: preset.id });
+    } else {
+      db.prepare(
+        'UPDATE planters SET name = ?, plant_type = ?, preset_id = ?, desired_json = ? WHERE id = ?',
+      ).run(role.name, preset.plantType, preset.id, JSON.stringify(presetToDesired(preset)), role.id);
+    }
+    console.log(`  ${role.id}  ${role.name} (${preset.name})`);
+  }
+
   console.log(`Seeding ${hours}h of history…`);
   for (const { id } of planters) {
     const { readings, runs } = seedHistory(id, hours);
     console.log(`  ${id}: ${readings} readings, ${runs} pump runs`);
   }
 
-  // The backend keeps planters in memory and would overwrite everything above
-  // on the next MQTT message. Tell it to re-read.
-  const notified = await notifyBackend();
   console.log(
     notified
       ? '\nReady. The app has already picked this up over SSE.'
@@ -101,10 +110,16 @@ async function main(): Promise<void> {
   console.log(`Built-in presets available: ${BUILTIN_PRESETS.length}`);
 }
 
-async function notifyBackend(): Promise<boolean> {
+const base = `http://127.0.0.1:${config.port}`;
+
+async function call(path: string, method: string, body?: unknown): Promise<boolean> {
   try {
-    const res = await fetch(`http://127.0.0.1:${config.port}/api/admin/reload`, {
-      method: 'POST',
+    const res = await fetch(`${base}${path}`, {
+      method,
+      // Only declare JSON when there is a body: Fastify rejects a POST that
+      // claims application/json and sends nothing (FST_ERR_CTP_EMPTY_JSON_BODY).
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(3000),
     });
     return res.ok;
@@ -112,6 +127,8 @@ async function notifyBackend(): Promise<boolean> {
     return false;
   }
 }
+
+const notifyBackend = (): Promise<boolean> => call('/api/admin/reload', 'POST');
 
 main()
   .catch((err: unknown) => {

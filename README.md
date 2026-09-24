@@ -34,6 +34,16 @@ pnpm dev:sim
 pnpm dev:web
 ```
 
+## Presenter mode
+
+Add `?presenter=1` on the machine driving the projector (`?presenter=0` turns it
+off). Scales everything up, hides the connection chip, the small print and the
+simulator drawer.
+
+It is remembered per device, which is the point: the projected laptop runs
+presenter mode while the phone in your hand stays normal and keeps the drawer,
+so you can trigger a fault without the audience seeing the controls.
+
 ## Simulator controls
 
 Long-press the "Smart Planter" wordmark on the home screen, or add `?dev=1` to
