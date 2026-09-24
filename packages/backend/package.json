@@ -7,18 +7,21 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "provision": "tsx src/scripts/provision.ts"
   },
   "dependencies": {
     "@planter/shared": "workspace:*",
     "better-sqlite3": "^13.0.3",
     "fastify": "^5.12.5",
     "mqtt": "^5.16.0",
+    "qrcode": "^1.5.4",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.10.2",
+    "@types/qrcode": "^1.5.6",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^5.0.1"

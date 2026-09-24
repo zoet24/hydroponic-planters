@@ -34,6 +34,18 @@ pnpm dev:sim
 pnpm dev:web
 ```
 
+## Provisioning a planter
+
+```bash
+pnpm provision --id planter-004 --name "Shelf 4"   # mint a code, write qr/planter-004.png
+pnpm provision --reclaim planter-002               # fresh code for a rehearsal
+pnpm qr                                            # rewrite every QR for today's IP
+pnpm provision --list
+```
+
+The QR encodes this laptop's current LAN address, which a phone hotspot changes
+on most reconnects — so regenerate and reprint on the day rather than in advance.
+
 Useful env vars: `SIM_COUNT` (default 3), `MQTT_URL`, `DB_PATH`, `SIM_ENABLED=false`.
 
 ## Packages

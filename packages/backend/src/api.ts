@@ -9,6 +9,7 @@ import {
   presetToDesired,
   TIME_SCALE,
 } from '@planter/shared';
+import { consumeToken, inspectToken } from './claim';
 import { config } from './config';
 import { db, readingsBetween, recentEvents, recordEvent } from './db';
 import { publishDesired, publishFault, publishRunNow, publishTimeScale } from './mqtt';
@@ -153,6 +154,65 @@ export async function routes(app: FastifyInstance): Promise<void> {
       ...e,
       payload: e.payload ? JSON.parse(e.payload) : null,
     }));
+  });
+
+  // ── Claim flow ────────────────────────────────────────────────────────────
+  //
+  // Preview is read-only: the confirm screen needs to know whether a code is
+  // good before anyone taps the button, and looking must not consume it.
+
+  app.get('/api/claim', async (req) => {
+    const q = z.object({ d: z.string().min(1), t: z.string().min(1) }).parse(req.query);
+    const outcome = inspectToken(q.d, q.t);
+    const record = getPlanter(q.d);
+    return {
+      outcome,
+      planter: outcome === 'unknown' || !record ? null : toView(record),
+    };
+  });
+
+  app.post('/api/claim', async (req, reply) => {
+    const body = z
+      .object({
+        planterId: z.string().min(1),
+        token: z.string().min(1),
+        name: z.string().min(1).max(60).optional(),
+        presetId: z.string().min(1).optional(),
+      })
+      .parse(req.body);
+
+    const record = getPlanter(body.planterId);
+    if (!record) return reply.code(404).send({ outcome: 'unknown', planter: null });
+
+    // An already-claimed code opens the planter rather than erroring: realistically
+    // that is you, re-scanning your own sticker.
+    const existing = inspectToken(body.planterId, body.token);
+    if (existing === 'already_claimed') {
+      return reply.code(200).send({ outcome: 'already_claimed', planter: toView(record) });
+    }
+
+    const outcome = consumeToken(body.planterId, body.token);
+    if (outcome !== 'ready') {
+      const code = outcome === 'expired' ? 410 : 404;
+      return reply.code(code).send({ outcome, planter: null });
+    }
+
+    record.claimedAt = Date.now();
+    if (body.name) record.name = body.name;
+
+    if (body.presetId) {
+      const preset = resolvePreset(body.presetId);
+      if (preset) {
+        applyPreset(record, preset);
+        record.desired = presetToDesired(preset, record.desired.pumpEnable);
+        record.desiredSetAt = Date.now();
+        publishDesired(record, record.desired);
+      }
+    }
+
+    persist(record);
+    markDirty(body.planterId);
+    return { outcome: 'ready', planter: toView(record) };
   });
 
   app.get('/api/presets', async () => BUILTIN_PRESETS);

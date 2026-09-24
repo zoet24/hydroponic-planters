@@ -1,5 +1,5 @@
 import { formatUntil, nextPumpRun } from '@planter/shared';
-import type { PlanterView } from '../usePlanters';
+import type { PlanterView } from '../types';
 
 /**
  * Unconfirmed settings are only worth showing while the device is reachable.
@@ -70,3 +70,11 @@ export function fleetSummary(planters: PlanterView[]): string {
 
   return problems.length === 0 ? `${count}, all well` : `${count}: ${problems.join(', ')}`;
 }
+
+/** Per-field labels for the sync chips. Order follows DESIRED_FIELDS. */
+export const FIELD_LABELS: Record<string, string> = {
+  pumpEnable: 'Enable',
+  speedPercent: 'Speed',
+  intervalHours: 'Interval',
+  runtimeMinutes: 'Runtime',
+};

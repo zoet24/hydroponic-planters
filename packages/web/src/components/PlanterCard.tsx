@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Chip } from './Chip';
 import { describePlanter, isSyncing, luxLabel, pumpReadout, relativeTime, tempLabel } from '../lib/format';
-import type { PlanterView } from '../usePlanters';
+import type { PlanterView } from '../types';
 
 export function PlanterCard({ planter: p }: { planter: PlanterView }) {
   const pump = pumpReadout(p);

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PlanterCard } from '../components/PlanterCard';
 import { fleetSummary } from '../lib/format';
-import { usePlanters } from '../usePlanters';
+import { usePlanters } from '../PlantersContext';
 
 export function Home() {
   const { planters, connection } = usePlanters();

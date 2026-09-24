@@ -13,7 +13,9 @@
     "dev:sim": "pnpm --filter @planter/simulator dev",
     "dev:web": "pnpm --filter @planter/web dev",
     "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "pnpm -r --if-present typecheck",
+    "provision": "pnpm --filter @planter/backend provision",
+    "qr": "pnpm --filter @planter/backend provision --qr"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

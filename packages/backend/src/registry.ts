@@ -65,7 +65,38 @@ export const setSimulatedIds = (ids: string[]): void => {
   simulatedIds = new Set(ids);
 };
 
-export const getPlanter = (id: string): PlanterRecord | undefined => fleet.get(id);
+/**
+ * Look up a planter, falling back to SQLite for one we have not seen.
+ *
+ * `pnpm provision` runs in its own process and writes straight to the database,
+ * so a planter created while the backend is running is absent from the in-memory
+ * fleet until something reloads it. Without this, claiming a freshly provisioned
+ * planter 404s even though its token is perfectly valid.
+ */
+export function getPlanter(id: string): PlanterRecord | undefined {
+  const cached = fleet.get(id);
+  if (cached) return cached;
+
+  const row = db.prepare('SELECT * FROM planters WHERE id = ?').get(id) as
+    | Record<string, unknown>
+    | undefined;
+  if (!row) return undefined;
+
+  const record: PlanterRecord = {
+    id,
+    name: String(row.name),
+    plantType: (row.plant_type as string | null) ?? null,
+    presetId: (row.preset_id as string | null) ?? null,
+    desired: DesiredState.catch(DEFAULT_DESIRED).parse(safeJson(row.desired_json)),
+    reported: ReportedState.catch({}).parse(safeJson(row.reported_json)),
+    online: false,
+    lastSeenAt: (row.last_seen_at as number | null) ?? null,
+    claimedAt: (row.claimed_at as number | null) ?? null,
+    desiredSetAt: 0,
+  };
+  fleet.set(id, record);
+  return record;
+}
 export const allPlanters = (): PlanterRecord[] => [...fleet.values()];
 
 const upsert = db.prepare(`
