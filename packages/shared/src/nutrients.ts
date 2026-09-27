@@ -47,3 +47,31 @@ export function nutrientStatus(input: NutrientInput): NutrientResult {
 }
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
+
+/**
+ * How overdue something scheduled is. Shared by the pH check-in and the nutrient
+ * dose, which are the same shape of question asked of different clocks.
+ */
+export type DueState = 'ok' | 'soon' | 'due' | 'overdue';
+
+export interface DueOptions {
+  /** Flag it this long before it falls due. */
+  soonDays?: number;
+  /** Past this much beyond the due date, call it overdue rather than due. */
+  overdueDays?: number;
+}
+
+export function dueState(
+  dueAt: number | null,
+  now: number,
+  { soonDays = 1, overdueDays = OVERDUE_GRACE_DAYS }: DueOptions = {},
+): DueState {
+  // Nothing scheduled is not the same as nothing owed — there is simply no
+  // preset, so there is nothing to be late for.
+  if (dueAt === null || !Number.isFinite(dueAt)) return 'ok';
+
+  if (now >= dueAt + overdueDays * DAY_MS) return 'overdue';
+  if (now >= dueAt) return 'due';
+  if (dueAt - now <= soonDays * DAY_MS) return 'soon';
+  return 'ok';
+}

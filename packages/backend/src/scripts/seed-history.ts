@@ -11,6 +11,7 @@ import { resolvePreset } from '../registry';
  */
 
 const STEP_MS = 600_000; // one reading per metric every 10 minutes
+const DAY_MS = 86_400_000;
 
 /** Fixed per planter, so a recorded demo and a live one draw the same shape. */
 const seedFor = (planterId: string): number =>
@@ -36,7 +37,12 @@ export function seedHistory(planterId: string, hours = 24, replace = true): Seed
     if (replace) {
       db.prepare('DELETE FROM readings WHERE planter_id = ? AND ts >= ?').run(planterId, from);
       db.prepare('DELETE FROM events WHERE planter_id = ? AND ts >= ?').run(planterId, from);
-      db.prepare('DELETE FROM ph_checkins WHERE planter_id = ? AND ts >= ?').run(planterId, from);
+      // The pH and nutrient markers sit deliberately before the readings window,
+      // so clear them by type rather than by time or they would accumulate.
+      db.prepare(
+        "DELETE FROM events WHERE planter_id = ? AND type IN ('ph_checkin', 'nutrients_added')",
+      ).run(planterId);
+      db.prepare('DELETE FROM ph_checkins WHERE planter_id = ?').run(planterId);
     }
 
     const seed = seedFor(planterId);
@@ -65,23 +71,26 @@ export function seedHistory(planterId: string, hours = 24, replace = true): Seed
       runs += 1;
     }
 
-    // Enough of a story that the timeline is worth looking at, and so the pH
-    // and nutrient chips have something to count from.
-    const phTs = now - 2 * 86_400_000 + 3_600_000;
-    if (phTs >= from && preset) {
+    /*
+     * The pH and nutrient markers are placed relative to the preset's own
+     * intervals, so both read as "due soon" rather than landing wherever the
+     * seed window happens to fall. They sit outside the readings window on
+     * purpose — an earlier version guarded them with `ts >= from` and the 24
+     * hour default silently dropped both, leaving every chip blank.
+     */
+    if (preset) {
+      const phTs = now - (preset.ph.checkIntervalDays - 1) * DAY_MS;
       db.prepare(
         'INSERT INTO ph_checkins (planter_id, ts, ph, status, action, advice) VALUES (?, ?, ?, ?, ?, ?)',
       ).run(planterId, phTs, 6.1, 'in_range', 'none', 'pH 6.1 is within the target. Nothing to do.');
       insertEvent.run(planterId, phTs, 'ph_checkin', JSON.stringify({ ph: 6.1, status: 'in_range' }));
-    }
 
-    const nutrientTs = now - 5 * 86_400_000;
-    if (nutrientTs >= from) {
+      const nutrientTs = now - (preset.nutrients.scheduleDays - 1) * DAY_MS;
       insertEvent.run(
         planterId,
         nutrientTs,
         'nutrients_added',
-        JSON.stringify({ strengthMultiplier: preset?.nutrients.strengthMultiplier ?? 1 }),
+        JSON.stringify({ strengthMultiplier: preset.nutrients.strengthMultiplier }),
       );
     }
 

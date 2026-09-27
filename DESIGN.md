@@ -537,7 +537,7 @@ Recording writes an event carrying the multiplier that was active at the time (`
 3. **History** — two line charts (temp, lux) plus a pump-run strip underneath on the same time axis. Range toggle: 1h / 6h / 24h.
 4. **Timeline** — reverse-chronological events with icons.
 
-Home cards carry status chips only — `online`, `water OK`, `pH due`, `nutrients due`, and a small `syncing` or `stale` chip. The full desired/reported table stays on the detail screen.
+Home cards carry status chips only — `online`, `water OK`, `pH check due soon`, `Nutrients due soon`, and a small `syncing` or `stale` chip. Upkeep chips are hidden while a planter is offline: it has bigger problems than an overdue pH check. The full desired/reported table stays on the detail screen.
 
 **Label the next run honestly.** Because the schedule lives on the device and fires on the hour, applying a preset mid-talk means the first real run may be hours away. Show the device's `Next Scheduled Runs` value as-is and use `Run Pump Now` for the live tower — the UI shouldn't imply a preset took effect immediately when it hasn't.
 

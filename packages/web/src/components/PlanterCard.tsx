@@ -1,6 +1,15 @@
 import { Link } from 'react-router-dom';
 import { Chip } from './Chip';
-import { describePlanter, isSyncing, luxLabel, pumpReadout, relativeTime, tempLabel } from '../lib/format';
+import {
+  describePlanter,
+  isSyncing,
+  luxCompact,
+  nutrientChip,
+  phChip,
+  pumpReadout,
+  relativeTime,
+  tempLabel,
+} from '../lib/format';
 import type { PlanterView } from '../types';
 
 export function PlanterCard({
@@ -30,6 +39,18 @@ export function PlanterCard({
         {p.online && p.reported.waterOk === true && <Chip tone="green">Water OK</Chip>}
         {p.online && p.reported.waterOk === false && <Chip tone="red">Water low</Chip>}
 
+        {/* Upkeep only matters while the planter is reachable — an offline
+            planter has bigger problems than an overdue pH check. */}
+        {p.online &&
+          [phChip(p), nutrientChip(p)].map(
+            (chip) =>
+              chip && (
+                <Chip key={chip.label} tone={chip.tone}>
+                  {chip.label}
+                </Chip>
+              ),
+          )}
+
         {/* Specified in UI-HANDOFF but not drawn on the artboard. The full
             desired/reported table stays on the detail screen. */}
         {isSyncing(p) && (
@@ -41,7 +62,7 @@ export function PlanterCard({
 
       <div className="readouts">
         <Readout label="Water" value={noData ? 'No data' : tempLabel(p.reported.waterTempC)} muted={noData} />
-        <Readout label="Light" value={noData ? 'No data' : luxLabel(p.reported.lightLux)} muted={noData} />
+        <Readout label="Light" value={noData ? 'No data' : luxCompact(p.reported.lightLux)} muted={noData} />
         <Readout label={pump.label} value={pump.value} muted={pump.muted} />
       </div>
 

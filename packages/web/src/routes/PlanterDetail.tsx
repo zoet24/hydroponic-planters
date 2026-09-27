@@ -13,7 +13,7 @@ import {
   eventTone,
   type PlanterEvent,
 } from '@planter/shared';
-import { luxLabel, relativeTime } from '../lib/format';
+import { luxLabel, nutrientChip, nutrientSummary, phChip, relativeTime } from '../lib/format';
 import { trimZero, type Point } from '@planter/shared';
 import { api, post, usePlanter } from '../PlantersContext';
 import type { PlanterView } from '../types';
@@ -67,10 +67,19 @@ function DetailHeader({ planter: p }: { planter: PlanterView }) {
         </Chip>
         {p.preset && <span className="chip chip--grey chip--plain">{p.preset.name} preset</span>}
         {p.preset && (
-          <Link to={`/planters/${p.id}/ph`} className="chip chip--amber chip--link">
+          <Link
+            to={`/planters/${p.id}/ph`}
+            className={`chip chip--${phChip(p)?.tone ?? 'grey'} chip--link`}
+          >
             <span className="chip__dot" aria-hidden="true" />
             pH check due {dueLabel(p.phCheckDueAt)}
           </Link>
+        )}
+        {nutrientChip(p) && (
+          <span className={`chip chip--${nutrientChip(p)!.tone}`}>
+            <span className="chip__dot" aria-hidden="true" />
+            {nutrientChip(p)!.label}
+          </span>
         )}
       </div>
 
@@ -254,6 +263,11 @@ function Config({ planter: p }: { planter: PlanterView }) {
                 ? `${p.reported.nextScheduledRuns} (reported by the planter)`
                 : 'Not reported yet'}
             </span>
+          </div>
+
+          <div className="config__row config__row--foot">
+            <span className="config__setting">Nutrients</span>
+            <span className="config__spanrest">{nutrientSummary(p)}</span>
           </div>
         </div>
 
