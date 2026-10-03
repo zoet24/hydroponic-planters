@@ -14,22 +14,6 @@ function hashNoise(seed: number, t: number): number {
 const fractionOfDay = (now: number): number => (now % DAY_MS) / DAY_MS;
 
 /**
- * Indoor light: dark overnight, a broad raised-cosine peak through the day.
- * Peaks around 13:00 UTC at roughly `peakLux`.
- */
-export function lightLux(now: number, seed: number, peakLux = 6000): number {
-  const hour = fractionOfDay(now) * 24;
-  const sunrise = 7;
-  const sunset = 21;
-  if (hour < sunrise || hour > sunset) return 0;
-
-  const t = (hour - sunrise) / (sunset - sunrise); // 0..1 across daylight
-  const shape = Math.sin(Math.PI * t) ** 1.5;
-  const noise = 1 + hashNoise(seed, now) * 0.06;
-  return Math.max(0, Math.round(peakLux * shape * noise));
-}
-
-/**
  * Water temperature follows the light curve but lags it by about two hours and
  * swings far less — thermal mass.
  */

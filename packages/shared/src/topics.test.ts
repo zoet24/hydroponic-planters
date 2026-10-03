@@ -26,7 +26,7 @@ describe('topic construction', () => {
 describe('topic parsing', () => {
   it('round-trips every inbound topic it builds', () => {
     const t = deviceTopics('planter-002');
-    const inbound = [t.status, t.waterTemperature, t.lightLevel, t.waterOk, t.pumpBlocked, t.pumpState, t.pumpSpeedState, t.pumpEnableState, t.intervalHoursState, t.runtimeMinutesState, t.lastRunHour, t.nextScheduledRuns];
+    const inbound = [t.status, t.waterTemperature, t.waterOk, t.pumpBlocked, t.pumpState, t.pumpSpeedState, t.pumpEnableState, t.intervalHoursState, t.runtimeMinutesState, t.lastRunHour, t.nextScheduledRuns];
     for (const topic of inbound) {
       expect(parseStateTopic(topic), topic).not.toBeNull();
       expect(parseStateTopic(topic)!.deviceId).toBe('planter-002');

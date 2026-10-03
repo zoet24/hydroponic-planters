@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { niceDomain, PLOT, ticksFor, timeLabel, xAt, yAt, type Point } from '@planter/shared';
 
 /**
- * Small-multiple line chart. Water temperature and light level get one chart
- * each rather than sharing a dual axis — two measures on two y-scales is the
- * single most misread chart there is, and the artboard already splits them.
+ * Line chart for a single measure. Kept general rather than collapsed into a
+ * temperature chart: if a second series ever arrives it gets its own chart, not
+ * a second y-axis — two measures on two scales is the most misread chart there
+ * is.
  *
  * Hover gives a crosshair and a value readout. Not drawn on the artboard, but a
  * line chart people can't interrogate is a picture of data rather than data.

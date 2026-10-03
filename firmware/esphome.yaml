@@ -59,11 +59,6 @@ wifi:
 
 captive_portal:
 
-i2c:
-  sda: GPIO06
-  scl: GPIO07
-  scan: true
-
 one_wire:
   - platform: gpio
     pin: GPIO05
@@ -89,6 +84,11 @@ time:
               }
 
 globals:
+  - id: nutrient_dose_count
+    type: int
+    initial_value: '0'
+    restore_value: true
+
   - id: interval_hours
     type: int
     initial_value: '6'
@@ -110,10 +110,15 @@ sensor:
     update_interval: 10s
     accuracy_decimals: 1
 
-  - platform: bh1750
-    name: "Light Level"
-    update_interval: 10s
+  # Bumped by the button below. The app watches for the value going up, which
+  # is replay-safe in a way a bare event is not: a retained message redelivered
+  # on reconnect carries the same count, so nothing is double-recorded.
+  - platform: template
+    name: "Nutrient Doses"
+    id: nutrient_doses
     accuracy_decimals: 0
+    update_interval: 60s
+    lambda: "return id(nutrient_dose_count);"
 
 binary_sensor:
   - platform: gpio
@@ -122,9 +127,15 @@ binary_sensor:
     pin:
       number: GPIO10
       mode: INPUT_PULLUP
-      # POLARITY UNVERIFIED — see README. Backwards, this blocks a full tank
-      # and permits a dry one, which is the exact opposite of the intent.
-      inverted: true
+      # NOT inverted, deliberately.
+      #
+      # The switch sits between GPIO10 and ground. Float up (water present)
+      # leaves it OPEN, so the internal pull-up wins and the pin reads HIGH.
+      # Float down (water low) CLOSES it to ground and the pin reads LOW.
+      #
+      # ESPHome publishes a gpio binary_sensor as ON when the pin is HIGH, so
+      # HIGH -> ON -> "Water OK" is already the right way round. Adding
+      # `inverted: true` here would block a full tank and permit a dry one.
     filters:
       # Fail fast, recover slow: OFF is instant, but the float must read OK for
       # five continuous seconds before we believe it. A sloshing float should
@@ -270,3 +281,14 @@ button:
     id: run_pump_now
     on_press:
       - script.execute: run_pump
+
+  # Lets a dose be logged from the device's own web UI when the app is not to
+  # hand. The app's "I added nutrients" button remains the usual route.
+  - platform: template
+    name: "Log Nutrients Added"
+    id: log_nutrients
+    on_press:
+      - lambda: |-
+          id(nutrient_dose_count) += 1;
+          ESP_LOGI("nutrients", "Dose logged, count now %d", id(nutrient_dose_count));
+      - component.update: nutrient_doses

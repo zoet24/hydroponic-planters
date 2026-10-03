@@ -94,10 +94,9 @@ describe('clampToSafety', () => {
     const hostile: P = {
       ...basil(),
       pump: { intervalHours: 1, runtimeMinutes: 15, speedPercent: 100 },
-      light: { minLux: 99_999 },
       waterTempC: { min: 34, max: 35 },
       ph: { targetMin: 8, targetMax: 8, checkIntervalDays: 14 },
-      nutrients: { strengthMultiplier: 1.5, scheduleDays: 28 },
+      nutrients: { strengthMultiplier: 1.5, scheduleDays: 28, guidance: 'Feed sparingly.' },
     };
     const { preset, warnings } = clampToSafety(hostile);
     expect(Preset.safeParse(preset).success).toBe(true);

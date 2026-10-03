@@ -60,7 +60,10 @@ The simulator and the real device are **indistinguishable to the backend** — s
 
 ## 2. Device contract (MQTT)
 
-> Revised against `firmware/esphome.yaml`. The firmware implements about **40% of the contract in the brief** — see the gap table. This is the single biggest change to the plan.
+> **Revised 3 Oct against the finished hardware.** The light sensor is gone: no
+> BH1750, no I²C bus, no lux anywhere in the stack. The tower measures water
+> temperature and water level, and that is all. Everything below reflects the
+> wired, bench-tested build.
 
 ### Where the firmware stands today
 
@@ -68,7 +71,6 @@ The simulator and the real device are **indistinguishable to the backend** — s
 |---|---|---|
 | MQTT transport | `api:` + `web_server:` only | **no `mqtt:` block at all** |
 | DS18B20 water temp | — | no `one_wire:`, no sensor |
-| BH1750 light | — | no `i2c:`, no sensor |
 | Float switch | — | no `binary_sensor:` |
 | Pump switch + speed number | `fan:` (hbridge) | different entity type, different topics |
 | Pump master enable | — | doesn't exist |
@@ -86,7 +88,7 @@ That mismatch is worth 30 seconds on stage. "Optimistic state" is a real pattern
 
 ### Firmware delta
 
-**Written — see `firmware/esphome.yaml`.** The delta below is what changed; the file itself is the source of truth and carries two further removals (`api:`, and `mqtt.reboot_timeout`) explained in `firmware/README.md`. It has **not been compiled** — ESPHome needs Python 3.11+, which this machine does not have. Pins are still placeholders pending the C3 Super Mini pinout.
+**Written — see `firmware/esphome.yaml`.** The delta below is what changed; the file itself is the source of truth and carries two further removals (`api:`, and `mqtt.reboot_timeout`) explained in `firmware/README.md`. **Compiles clean** on ESPHome 2026.9.0 (flash 60.6%, RAM 34.8%). Pins are still placeholders pending the C3 Super Mini pinout.
 
 ```yaml
 mqtt:
@@ -100,13 +102,11 @@ wifi:
   password: !secret wifi_password
   ap: { ssid: "Hydro AP", password: "hydro_tower" }
 
-i2c: { sda: GPIO06, scl: GPIO07 }
 one_wire:
   - { platform: gpio, pin: GPIO05 }
 
 sensor:
   - { platform: dallas_temp, name: "Water Temperature", update_interval: 10s }
-  - { platform: bh1750, name: "Light Level", update_interval: 10s }
 
 binary_sensor:
   - platform: gpio
@@ -180,8 +180,8 @@ Prefix `planter-001` once `topic_prefix` is set. State topics are retained, so t
 |---|---|---|---|
 | `planter-001/status` | D→A | `online` \| `offline` | retained, LWT |
 | `planter-001/sensor/water_temperature/state` | D→A | `21.4` | °C |
-| `planter-001/sensor/light_level/state` | D→A | `842.0` | lux |
-| `planter-001/binary_sensor/water_ok/state` | D→A | `ON` \| `OFF` | `OFF` = low water |
+| `planter-001/binary_sensor/water_ok/state` | D→A | `ON` \| `OFF` | `ON` = water present, see polarity note |
+| `planter-001/sensor/nutrient_doses/state` | D→A | `3` | monotonic count; app acts on an increase |
 | `planter-001/binary_sensor/pump_blocked/state` | D→A | `ON` \| `OFF` | interlock active — low water or disabled |
 | `planter-001/fan/pump/state` + `/command` | ↔ | `ON` \| `OFF` | **fan**, not switch |
 | `planter-001/fan/pump/speed_level/state` + `/command` | ↔ | `0`–`100` | hbridge `speed_count` = 100, so level ≡ percent |
@@ -189,16 +189,23 @@ Prefix `planter-001` once `topic_prefix` is set. State topics are retained, so t
 | `planter-001/number/pump_interval_hours/state` + `/command` | ↔ | `1`–`24` | optimistic |
 | `planter-001/number/pump_runtime/state` + `/command` | ↔ | `1`–`30` | optimistic |
 | `planter-001/button/run_pump_now/command` | A→D | `PRESS` | **button** — answers the open question |
-| `planter-001/text_sensor/last_run_hour/state` | D→A | `"14:00"` | free, feed it to the timeline |
-| `planter-001/text_sensor/next_scheduled_runs/state` | D→A | `"00:00, 04:00, …"` | free, show it in Config |
+| `planter-001/sensor/last_run_hour/state` | D→A | `"14:00"` | text sensor, but published under `sensor` |
+| `planter-001/sensor/next_scheduled_runs/state` | D→A | `"00:00, 04:00, …"` | same; show it in Config |
 
-**Verify the fan sub-topic empirically rather than trusting this table.** The exact spelling of `speed_level` varies by ESPHome version. The moment MQTT is flashed:
+**Verified against the ESPHome 2026.9.0 source**, not guessed:
+
+- Topic shape is `<prefix>/<component_type>/<object_id>/<suffix>` (`mqtt_component.cpp`).
+- The fan's speed sub-topic is `speed_level/state` and `speed_level/command` (`mqtt_fan.h`).
+- Text sensors register as `"sensor"`, **not** `"text_sensor"` (`mqtt_text_sensor.cpp`). This one was wrong in an earlier draft of the table and would have left "Next scheduled runs" blank for ever.
+- Availability is `<prefix>/status` (the `mqtt` Python component's defaults).
+
+Still worth one look at the real board, because nothing here proves the firmware flashed cleanly:
 
 ```bash
 mosquitto_sub -h localhost -v -t 'planter-001/#'
 ```
 
-Two minutes of reading beats an afternoon of guessing. Everything in `shared/topics.ts` is built from the device name, so reconciling is a one-file change.
+Everything in `shared/topics.ts` is built from the device name, so reconciling is a one-file change.
 
 **The hbridge fan also exposes direction** — i.e. the pump can be commanded to run backwards. The backend should never publish to the direction topic, and `fan.turn_on` defaults to forward. Worth a line in the code so nobody wires it up later.
 
@@ -246,7 +253,7 @@ presets (
 readings (
   planter_id TEXT NOT NULL,
   ts         INTEGER NOT NULL,
-  metric     TEXT NOT NULL,            -- 'water_temp_c' | 'light_lux'
+  metric     TEXT NOT NULL,            -- 'water_temp_c'
   value      REAL NOT NULL
 )                                       -- INDEX (planter_id, metric, ts)
 
@@ -275,7 +282,9 @@ Notes:
 
 - **Config lives as JSON blobs**, not columns. Presets will change shape three times before the talk; a blob plus zod validation on the way in and out means no migrations.
 - **`readings` is long-and-thin.** One index serves every chart query. Throttle at ingest to one row per metric per 10 s and prune anything older than 7 days — otherwise the simulator at 60× will write a million rows overnight.
-- **No `alerts` table**, per §0.3.
+- **No `alerts` table**, per §0.3. One combined alert list covers connection,
+  water level, water temperature, pH and nutrients, at three severities
+  (critical / warning / info) — not four separate mechanisms.
 - No users, no sessions, no auth tables. Say this on stage before someone asks.
 
 ---
@@ -376,7 +385,6 @@ export const Preset = z.object({
     speedPercent:   z.number().int().min(20).max(100),
   }).refine(p => p.runtimeMinutes / (p.intervalHours * 60) <= SAFETY.pump.maxDutyCycle,
             'pump duty cycle above 25%'),
-  light: z.object({ minLux: z.number().min(0).max(100_000) }),   // advice + alerts only
   waterTempC: z.object({ min: z.number(), max: z.number() })
     .refine(r => r.max - r.min >= 2 && r.min >= 5 && r.max <= 35),
   ph: z.object({
@@ -519,7 +527,7 @@ Recording writes an event carrying the multiplier that was active at the time (`
 │ ┌──────────────────────────────┐ │
 │ │ Kitchen window       ● online│ │
 │ │ Basil                        │ │
-│ │ 21.4°C   840 lux   pump idle │ │
+│ │ 21.4°C   Water OK   2 h      │ │
 │ │ [water OK] [pH due]          │ │
 │ └──────────────────────────────┘ │
 │ ┌──────────────────────────────┐ │
@@ -532,9 +540,9 @@ Recording writes an event carrying the multiplier that was active at the time (`
 
 **Planter detail** — four stacked sections, no tabs (scrolling reads better on a projector than hunting for a tab):
 
-1. **Live** — water temp, lux, water OK, pump state + speed, `≈1.2 L/min (estimated)`. Alert banners at the top.
+1. **Live** — water temperature, water level, pump state. Three cards, not four. Alert banners at the top.
 2. **Config** — active preset, `[Change preset]`, `[✨ Ask AI]`, and the desired/reported table with a per-row `✓` or `⟳`. This is where idea #1 lives; give it room. Also here: **nutrients** (*"0.5× label strength, every 7 days — last added 5 days ago"* with an `[I added nutrients]` button) and **next scheduled run**, taken verbatim from the device's own text sensor.
-3. **History** — two line charts (temp, lux) plus a pump-run strip underneath on the same time axis. Range toggle: 1h / 6h / 24h.
+3. **History** — one line chart (water temperature) plus a pump-run strip underneath on the same time axis. Range toggle: 1h / 6h / 24h.
 4. **Timeline** — reverse-chronological events with icons.
 
 Home cards carry status chips only — `online`, `water OK`, `pH check due soon`, `Nutrients due soon`, and a small `syncing` or `stale` chip. Upkeep chips are hidden while a planter is offline: it has bigger problems than an overdue pH check. The full desired/reported table stays on the detail screen.
@@ -689,7 +697,6 @@ One command, run ~10 minutes before you walk on so the timestamps look fresh:
 - **Wipes** `readings`, `events`, `ph_checkins`.
 - **Resets claim state** — planters back to unclaimed, fresh single-use tokens minted, QR PNGs regenerated against the current laptop IP.
 - **Reseeds ~24 h of plausible history** per planter:
-  - light on a diurnal curve — 0 lux overnight, a broad indoor peak around midday,
   - water temperature on a gentle sine, ~19–23 °C, lagging the light curve by an hour or two,
   - pump runs at the active preset's interval, on the hour, with matching `pump_run` events,
   - one low-water blip on planter-002 about six hours back, so the timeline has a story in it,

@@ -158,7 +158,7 @@ export async function routes(app: FastifyInstance): Promise<void> {
     const { id } = IdParam.parse(req.params);
     const q = z
       .object({
-        metric: z.enum(['water_temp_c', 'light_lux']).default('water_temp_c'),
+        metric: z.literal('water_temp_c').default('water_temp_c'),
         from: z.coerce.number().optional(),
         to: z.coerce.number().optional(),
       })

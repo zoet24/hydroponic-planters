@@ -11,7 +11,7 @@ import {
   type DesiredField,
   type Preset,
 } from '@planter/shared';
-import { db, peakLuxLast24h, recordEvent } from './db';
+import { db, recordEvent } from './db';
 import { nutrientStatus } from '@planter/shared';
 
 /**
@@ -218,6 +218,7 @@ export function resolvePreset(presetId: string | null): Preset | null {
 export function toView(record: PlanterRecord, now = Date.now()): PlanterView {
   const preset = resolvePreset(record.presetId);
   const pending = pendingFields(record.desired, record.reported);
+  const due = dueDates(record.id, preset, now);
 
   return {
     id: record.id,
@@ -235,12 +236,13 @@ export function toView(record: PlanterRecord, now = Date.now()): PlanterView {
     syncing: pending.length > 0,
     syncStale: pending.length > 0 && isSyncStale(record.desiredSetAt, now),
     flowEstimateLpm: estimateFlowLpm(record.reported.pumpOn === true, record.reported.speedPercent ?? 0),
-    ...dueDates(record.id, preset, now),
+    ...due,
     alerts: evaluateAlerts({
       online: record.online,
       reported: record.reported,
       preset,
-      lightPeak24hLux: peakLuxLast24h(record.id, now),
+      ...due,
+      now,
     }),
   };
 }

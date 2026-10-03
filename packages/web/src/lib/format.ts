@@ -8,21 +8,8 @@ import type { PlanterView } from '../types';
  */
 export const isSyncing = (p: PlanterView): boolean => p.online && p.syncing;
 
-/**
- * Compact lux for the home cards. Three readouts share a card, leaving about
- * 105px each at the design's 26px — where "5,917 lux" overflows by a fifth. The
- * artboard has the same latent overflow with its own sample value; lux-level
- * precision is not meaningful at a glance, and the detail screen has the exact
- * figure.
- */
-export const luxCompact = (lux: number | undefined): string => {
-  if (typeof lux !== 'number') return 'No data';
-  if (lux < 1000) return `${Math.round(lux)}\u00a0lux`;
-  return `${(lux / 1000).toFixed(1)}k\u00a0lux`;
-};
-
-export const luxLabel = (lux: number | undefined): string =>
-  typeof lux === 'number' ? `${Math.round(lux).toLocaleString('en-GB')}\u00a0lux` : 'No data';
+export const waterLabel = (ok: boolean | undefined): string =>
+  ok === undefined ? 'No data' : ok ? 'OK' : 'Low';
 
 export const tempLabel = (c: number | undefined): string =>
   typeof c === 'number' ? `${c.toFixed(1)}\u00a0°C` : 'No data';

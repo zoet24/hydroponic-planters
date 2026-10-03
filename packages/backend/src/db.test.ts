@@ -6,9 +6,8 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 const DB_PATH = `/tmp/planter-test-${process.pid}.db`;
 process.env.DB_PATH = DB_PATH;
 
-const { db, peakLuxLast24h, recordReading, recordEvent, recentEvents } = await import('./db');
+const { db, recordReading, recordEvent, recentEvents } = await import('./db');
 
-const HOUR = 3_600_000;
 const now = Date.now();
 
 beforeEach(() => {
@@ -39,40 +38,8 @@ describe('recordReading throttle', () => {
 
   it('throttles each metric independently', () => {
     recordReading('p3', 'water_temp_c', 20, now);
-    recordReading('p3', 'light_lux', 500, now);
+    recordReading('p3', 'pump_speed', 70, now);
     expect(rowCount('p3')).toBe(2);
-  });
-});
-
-describe('peakLuxLast24h', () => {
-  const spread = (planterId: string, points: [hoursAgo: number, lux: number][]) => {
-    for (const [h, lux] of points) {
-      db.prepare("INSERT INTO readings (planter_id, ts, metric, value) VALUES (?, ?, 'light_lux', ?)").run(
-        planterId,
-        now - h * HOUR,
-        lux,
-      );
-    }
-  };
-
-  it('returns nothing when there is no history at all', () => {
-    expect(peakLuxLast24h('empty', now)).toBeUndefined();
-  });
-
-  it('refuses to judge a fresh database, rather than reporting a false low', () => {
-    // Twenty minutes of dim dawn readings is not evidence of a dark corner.
-    spread('fresh', [[0.3, 40], [0.2, 90], [0.1, 150]]);
-    expect(peakLuxLast24h('fresh', now)).toBeUndefined();
-  });
-
-  it('judges once the readings span enough of the day', () => {
-    spread('settled', [[20, 10], [14, 6200], [2, 800]]);
-    expect(peakLuxLast24h('settled', now)).toBe(6200);
-  });
-
-  it('ignores readings older than 24 hours', () => {
-    spread('old', [[40, 90_000], [20, 10], [2, 500]]);
-    expect(peakLuxLast24h('old', now)).toBe(500);
   });
 });
 

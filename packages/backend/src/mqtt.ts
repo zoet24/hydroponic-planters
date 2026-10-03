@@ -68,11 +68,17 @@ function ingest(topic: string, raw: string): void {
       break;
     }
 
-    case 'lightLevel': {
+    case 'nutrientDoses': {
       const v = numeric.decode(raw);
       if (v === null) return;
-      record.reported.lightLux = v;
-      recordReading(deviceId, 'light_lux', v, now);
+      // A rising count means a dose was logged on the device. Only act on an
+      // increase: the retained message replays on every reconnect, and a reboot
+      // resets the counter, so both must re-baseline rather than record.
+      const previous = record.reported.nutrientDoses;
+      if (previous !== undefined && v > previous) {
+        recordEvent(deviceId, 'nutrients_added', { source: 'device' }, now);
+      }
+      record.reported.nutrientDoses = v;
       break;
     }
 

@@ -2,7 +2,6 @@ import type { MqttClient } from 'mqtt';
 import {
   AVAILABILITY,
   deviceTopics,
-  lightLux,
   numeric,
   onOff,
   waterTempC,
@@ -21,7 +20,6 @@ import {
 export interface PlanterOptions {
   id: string;
   seed: number;
-  peakLux?: number;
   baseTempC?: number;
 }
 
@@ -32,7 +30,6 @@ export class VirtualPlanter {
   readonly id: string;
   private readonly t: ReturnType<typeof deviceTopics>;
   private readonly seed: number;
-  private readonly peakLux: number;
   private readonly baseTempC: number;
 
   // settable config, mirroring the firmware's defaults
@@ -61,7 +58,6 @@ export class VirtualPlanter {
     this.id = opts.id;
     this.t = deviceTopics(opts.id);
     this.seed = opts.seed;
-    this.peakLux = opts.peakLux ?? 6000;
     this.baseTempC = opts.baseTempC ?? 21;
   }
 
@@ -220,7 +216,6 @@ export class VirtualPlanter {
   private publishTelemetry(now: number): void {
     if (this.faults.sensorDropout) return;
     this.pub(this.t.waterTemperature, numeric.encode(waterTempC(now, this.seed, this.baseTempC)));
-    this.pub(this.t.lightLevel, numeric.encode(lightLux(now, this.seed, this.peakLux)));
   }
 
   private publishWater(): void {

@@ -23,11 +23,14 @@ export function deviceTopics(id: string) {
 
     // device -> app
     waterTemperature: `${id}/sensor/water_temperature/state`,
-    lightLevel: `${id}/sensor/light_level/state`,
     waterOk: `${id}/binary_sensor/water_ok/state`,
+    nutrientDoses: `${id}/sensor/nutrient_doses/state`,
     pumpBlocked: `${id}/binary_sensor/pump_blocked/state`,
-    lastRunHour: `${id}/text_sensor/last_run_hour/state`,
-    nextScheduledRuns: `${id}/text_sensor/next_scheduled_runs/state`,
+    // NOT text_sensor/: ESPHome registers text sensors under "sensor" too
+    // (MQTT_COMPONENT_TYPE(MQTTTextSensor, "sensor") in mqtt_text_sensor.cpp).
+    // The object ids differ, so nothing collides.
+    lastRunHour: `${id}/sensor/last_run_hour/state`,
+    nextScheduledRuns: `${id}/sensor/next_scheduled_runs/state`,
 
     // both directions
     pumpState: `${id}/fan/pump/state`,
@@ -65,8 +68,8 @@ export const SUBSCRIPTIONS = [
 export type InboundSignal =
   | 'status'
   | 'waterTemperature'
-  | 'lightLevel'
   | 'waterOk'
+  | 'nutrientDoses'
   | 'pumpBlocked'
   | 'pumpState'
   | 'pumpSpeed'
@@ -79,16 +82,16 @@ export type InboundSignal =
 const INBOUND_BY_SUFFIX = new Map<string, InboundSignal>([
   ['status', 'status'],
   ['sensor/water_temperature/state', 'waterTemperature'],
-  ['sensor/light_level/state', 'lightLevel'],
   ['binary_sensor/water_ok/state', 'waterOk'],
+  ['sensor/nutrient_doses/state', 'nutrientDoses'],
   ['binary_sensor/pump_blocked/state', 'pumpBlocked'],
   ['fan/pump/state', 'pumpState'],
   ['fan/pump/speed_level/state', 'pumpSpeed'],
   ['switch/pump_enable/state', 'pumpEnable'],
   ['number/pump_interval_hours/state', 'intervalHours'],
   ['number/pump_runtime/state', 'runtimeMinutes'],
-  ['text_sensor/last_run_hour/state', 'lastRunHour'],
-  ['text_sensor/next_scheduled_runs/state', 'nextScheduledRuns'],
+  ['sensor/last_run_hour/state', 'lastRunHour'],
+  ['sensor/next_scheduled_runs/state', 'nextScheduledRuns'],
 ]);
 
 export interface ParsedTopic {
@@ -115,9 +118,18 @@ export function parseStateTopic(topic: string): ParsedTopic | null {
  *
  * This is why the firmware renames "Pump Runtime (min)" — the parentheses would
  * have produced `pump_runtime__min_`.
+ *
+ * Ported character for character from to_snake_case_char and to_sanitized_char
+ * in esphome/core/helpers.h (2026.9.0). Note that each space becomes its own
+ * underscore: collapsing runs with /\s+/ would disagree on a doubled space.
  */
 export const esphomeObjectId = (name: string): string =>
-  name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '_');
+  [...name]
+    // to_snake_case_char: a space becomes '_', A-Z lowercases, nothing else moves.
+    .map((c) => (c === ' ' ? '_' : c >= 'A' && c <= 'Z' ? c.toLowerCase() : c))
+    // to_sanitized_char: keep alphanumerics, '-' and '_'; everything else '_'.
+    .map((c) => (/^[-_0-9a-zA-Z]$/.test(c) ? c : '_'))
+    .join('');
 
 /** ESPHome speaks ON/OFF. Decoding is tolerant; encoding is not. */
 export const onOff = {

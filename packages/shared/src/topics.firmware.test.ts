@@ -26,13 +26,13 @@ const t = deviceTopics('planter-001');
 describe('firmware entity names match the topic contract', () => {
   it.each([
     ['Water Temperature', t.waterTemperature],
-    ['Light Level', t.lightLevel],
     ['Water OK', t.waterOk],
     ['Pump Blocked', t.pumpBlocked],
     ['Pump Enable', t.pumpEnableState],
     ['Pump Interval Hours', t.intervalHoursState],
     ['Pump Runtime', t.runtimeMinutesState],
     ['Run Pump Now', t.runPumpNowCommand],
+    // Both are text sensors, which ESPHome publishes under "sensor".
     ['Last Run Hour', t.lastRunHour],
     ['Next Scheduled Runs', t.nextScheduledRuns],
     ['Pump', t.pumpState],
@@ -46,6 +46,11 @@ describe('firmware entity names match the topic contract', () => {
       // The original "Pump Runtime (min)" became pump_runtime__min_.
       expect(esphomeObjectId(name), name).not.toMatch(/__|_$/);
     }
+  });
+
+  it('puts text sensors under sensor/, where ESPHome actually publishes them', () => {
+    expect(t.lastRunHour).toBe('planter-001/sensor/last_run_hour/state');
+    expect(t.nextScheduledRuns).toBe('planter-001/sensor/next_scheduled_runs/state');
   });
 
   it('sets the topic prefix from a substitution rather than the node name', () => {
@@ -77,4 +82,14 @@ describe('esphomeObjectId', () => {
     ['Water OK', 'water_ok'],
     ['Run Pump Now', 'run_pump_now'],
   ])('derives %p as %p', (name, expected) => expect(esphomeObjectId(name)).toBe(expected));
+
+  it('gives each space its own underscore, as the firmware does', () => {
+    // to_snake_case_char maps one space to one underscore; collapsing runs
+    // would quietly disagree with the device.
+    expect(esphomeObjectId('Water  Temperature')).toBe('water__temperature');
+  });
+
+  it('keeps digits, dashes and underscores', () => {
+    expect(esphomeObjectId('Pump-2_A')).toBe('pump-2_a');
+  });
 });

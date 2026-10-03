@@ -3,9 +3,10 @@
 ESPHome config for the tower. `esphome.yaml` is the live one;
 `esphome.original.yaml` is what the board shipped with, kept for reference.
 
-> **This has not been compiled.** It was written without ESPHome installed, so
-> the YAML structure and the topic names are checked but the lambdas and
-> component options are not. Compile before you trust it.
+> **Compiles clean** on ESPHome 2026.9.0 — flash 60.6%, RAM 34.8%. The lambdas
+> and component options are therefore verified. What is *not* verified is
+> anything needing the physical board: GPIO choices, float-switch polarity, and
+> that the sensors are wired where the config says they are.
 
 ## What changed from the original
 
@@ -59,8 +60,10 @@ esphome run firmware/esphome.yaml
 
 ## Verify the topics against the real board
 
-The one thing no test here can check is what ESPHome actually publishes. The
-spelling of the fan's speed sub-topic in particular varies by version.
+The topic names are verified against the ESPHome 2026.9.0 source — including
+that text sensors publish under `sensor/`, not `text_sensor/`, and that the
+fan's speed sub-topic is `speed_level`. Still worth one look, because none of
+that proves the board flashed and wired up correctly.
 
 ```bash
 mosquitto_sub -h localhost -v -t 'planter-001/#'

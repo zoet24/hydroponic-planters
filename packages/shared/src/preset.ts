@@ -22,7 +22,6 @@ export const SAFETY = {
     speedPercent: { min: 20, max: 100 }, // below ~20% the pump stalls
     maxDutyCycle: 0.25, // runtime / (interval * 60)
   },
-  light: { minLux: { min: 0, max: 100_000 } },
   waterTempC: { min: 5, max: 35, minSpan: 2 },
   ph: { min: 4, max: 8, minSpan: 0.2, checkIntervalDays: { min: 1, max: 14 } },
   nutrients: {
@@ -53,9 +52,6 @@ export const PresetShape = z.object({
       .max(SAFETY.pump.runtimeMinutes.max),
     speedPercent: z.number().int().min(SAFETY.pump.speedPercent.min).max(SAFETY.pump.speedPercent.max),
   }),
-  light: z.object({
-    minLux: z.number().min(SAFETY.light.minLux.min).max(SAFETY.light.minLux.max),
-  }),
   waterTempC: z.object({
     min: z.number().min(SAFETY.waterTempC.min).max(SAFETY.waterTempC.max),
     max: z.number().min(SAFETY.waterTempC.min).max(SAFETY.waterTempC.max),
@@ -74,6 +70,8 @@ export const PresetShape = z.object({
       .number()
       .min(SAFETY.nutrients.strengthMultiplier.min)
       .max(SAFETY.nutrients.strengthMultiplier.max),
+    /** Static, plant-specific advice. Shown with the reminder; never derived. */
+    guidance: z.string().min(1).max(160),
     scheduleDays: z
       .number()
       .int()
@@ -171,12 +169,6 @@ export function clampToSafety(input: Preset): ClampResult {
       `Running ${p.pump.runtimeMinutes} min every ${p.pump.intervalHours}h exceeds the ${SAFETY.pump.maxDutyCycle * 100}% duty cycle limit. Using ${capped} min.`,
     );
     p.pump.runtimeMinutes = capped;
-  }
-
-  const lux = clampNumber(p.light.minLux, SAFETY.light.minLux.min, SAFETY.light.minLux.max);
-  if (lux !== p.light.minLux) {
-    warnings.push(`Minimum light ${p.light.minLux} lux is implausible. Using ${lux} lux.`);
-    p.light.minLux = lux;
   }
 
   const tempBefore = { ...p.waterTempC };

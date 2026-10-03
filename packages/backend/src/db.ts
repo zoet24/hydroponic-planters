@@ -120,29 +120,6 @@ export function pruneOldReadings(): number {
   return db.prepare('DELETE FROM readings WHERE ts < ?').run(cutoff).changes;
 }
 
-/** Below this much history, we cannot tell a dark corner from a fresh database. */
-const LIGHT_JUDGEMENT_MIN_SPAN_MS = 6 * 3_600_000;
-
-/**
- * Peak lux over the last day, or undefined when there is not enough history to
- * judge. Returning a low peak from twenty minutes of dawn readings would fire a
- * "not enough light" alert on every fresh start, which is a lie about the plant.
- */
-export function peakLuxLast24h(planterId: string, now = Date.now()): number | undefined {
-  const row = db
-    .prepare(
-      `SELECT MAX(value) AS peak, MIN(ts) AS first, MAX(ts) AS last
-         FROM readings WHERE planter_id = ? AND metric = 'light_lux' AND ts >= ?`,
-    )
-    .get(planterId, now - 86_400_000) as
-    | { peak: number | null; first: number | null; last: number | null }
-    | undefined;
-
-  if (!row || row.peak === null || row.first === null || row.last === null) return undefined;
-  if (row.last - row.first < LIGHT_JUDGEMENT_MIN_SPAN_MS) return undefined;
-  return row.peak;
-}
-
 export function readingsBetween(planterId: string, metric: string, from: number, to: number) {
   return db
     .prepare('SELECT ts, value FROM readings WHERE planter_id = ? AND metric = ? AND ts BETWEEN ? AND ? ORDER BY ts')

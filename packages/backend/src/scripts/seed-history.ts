@@ -1,4 +1,4 @@
-import { lightLux, nextPumpRun, waterTempC } from '@planter/shared';
+import { nextPumpRun, waterTempC } from '@planter/shared';
 import { db } from '../db';
 import { resolvePreset } from '../registry';
 
@@ -56,8 +56,7 @@ export function seedHistory(planterId: string, hours = 24, replace = true): Seed
     let readings = 0;
     for (let ts = from; ts <= now; ts += STEP_MS) {
       insertReading.run(planterId, ts, 'water_temp_c', waterTempC(ts, seed));
-      insertReading.run(planterId, ts, 'light_lux', lightLux(ts, seed));
-      readings += 2;
+      readings += 1;
     }
 
     // On the hour, matching the firmware's `hour % interval === 0`.

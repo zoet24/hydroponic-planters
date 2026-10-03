@@ -394,6 +394,7 @@ h1 {
 }
 .banner--ok { background: var(--chip-green-bg); color: var(--chip-green-text); }
 .banner--warning { background: var(--chip-amber-bg); color: #3b2704; }
+.banner--info { background: var(--chip-grey-bg); color: var(--chip-grey-text); }
 .banner--critical { background: var(--chip-red-bg); color: #3b1108; }
 
 .section { display: flex; flex-direction: column; gap: 16px; }
@@ -406,6 +407,8 @@ h1 {
 .stat-grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
 @container page (min-width: 620px)  { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container page (min-width: 1040px) { .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* Live has three cards since the light sensor was cut. */
+@container page (min-width: 1040px) { .stat-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 .stat { gap: 10px; }
 .stat__label { font-size: 17px; color: var(--muted); font-weight: 500; }

@@ -21,8 +21,9 @@ export type DesiredState = z.infer<typeof DesiredState>;
 /** Everything the device reports. All optional: it may not have said yet. */
 export const ReportedState = z.object({
   waterTempC: z.number().optional(),
-  lightLux: z.number().optional(),
   waterOk: z.boolean().optional(),
+  /** Monotonic count of doses logged on the device itself. */
+  nutrientDoses: z.number().optional(),
   pumpBlocked: z.boolean().optional(),
   pumpOn: z.boolean().optional(),
   speedPercent: z.number().optional(),

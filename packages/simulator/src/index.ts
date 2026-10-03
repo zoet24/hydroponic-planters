@@ -16,9 +16,9 @@ const IDS = Array.from({ length: COUNT }, (_, i) => `planter-${String(i + 1).pad
 
 // Distinct personalities, so the fleet does not look like one planter copied.
 const PROFILES = [
-  { peakLux: 6500, baseTempC: 21 },
-  { peakLux: 2200, baseTempC: 19.5 }, // a dim shelf — will trip the light alert
-  { peakLux: 8000, baseTempC: 23 },
+  { baseTempC: 21 },
+  { baseTempC: 17.5 }, // a cold corner — will trip the temperature alert
+  { baseTempC: 23 },
 ];
 
 let timeScale: number = TIME_SCALE.default;

@@ -13,7 +13,7 @@ import {
   eventTone,
   type PlanterEvent,
 } from '@planter/shared';
-import { luxLabel, nutrientChip, nutrientSummary, phChip, relativeTime } from '../lib/format';
+import { nutrientChip, nutrientSummary, phChip, relativeTime, waterLabel } from '../lib/format';
 import { trimZero, type Point } from '@planter/shared';
 import { api, post, usePlanter } from '../PlantersContext';
 import type { PlanterView } from '../types';
@@ -106,35 +106,33 @@ function Live({ planter: p }: { planter: PlanterView }) {
     p.preset && p.reported.waterTempC !== undefined
       ? p.reported.waterTempC >= p.preset.waterTempC.min && p.reported.waterTempC <= p.preset.waterTempC.max
       : null;
-  const lightLow = p.alerts.some((a) => a.kind === 'light_low');
   const waterOk = p.reported.waterOk;
 
   return (
     <section className="section">
       <h2>Live</h2>
-      <div className="stat-grid">
+      <div className="stat-grid stat-grid--three">
         <Stat
           label="Water temperature"
           value={p.reported.waterTempC !== undefined ? p.reported.waterTempC.toFixed(1) : '—'}
           unit="°C"
-          chip={tempInRange === null ? null : { tone: tempInRange ? 'green' : 'amber', text: tempInRange ? 'In range' : 'Outside the preset range' }}
-        />
-        <Stat
-          label="Light level"
-          value={p.reported.lightLux !== undefined ? Math.round(p.reported.lightLux).toLocaleString('en-GB') : '—'}
-          unit="lux"
-          chip={!p.preset ? null : { tone: lightLow ? 'amber' : 'green', text: lightLow ? 'Not enough over the day' : 'Bright enough' }}
+          chip={
+            tempInRange === null
+              ? null
+              : { tone: tempInRange ? 'green' : 'amber', text: tempInRange ? 'In range' : 'Outside the preset range' }
+          }
+          note={tempInRange === false ? 'The tower cannot change its own water temperature.' : undefined}
         />
         <Stat
           label="Water level"
-          value={waterOk === undefined ? '—' : waterOk ? 'OK' : 'Low'}
-          chip={waterOk === undefined ? null : { tone: waterOk ? 'green' : 'red', text: waterOk ? 'Above the float switch' : 'Below the float switch' }}
+          value={waterLabel(waterOk)}
+          chip={
+            waterOk === undefined
+              ? null
+              : { tone: waterOk ? 'green' : 'red', text: waterOk ? 'Above the float switch' : 'Below the float switch' }
+          }
         />
-        <Stat
-          label="Pump"
-          value={pumpState(p)}
-          note={pumpNote(p)}
-        />
+        <Stat label="Pump" value={pumpState(p)} note={pumpNote(p)} />
       </div>
     </section>
   );
@@ -300,7 +298,6 @@ function History({
   onRange: (ms: number) => void;
 }) {
   const [temp, setTemp] = useState<Point[]>([]);
-  const [light, setLight] = useState<Point[]>([]);
   const [runs, setRuns] = useState<number[]>([]);
   const [to, setTo] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
@@ -315,10 +312,10 @@ function History({
     const readings = (metric: string) =>
       api<Point[]>(`/api/planters/${p.id}/readings?metric=${metric}&from=${from}&to=${now}`);
 
-    void Promise.all([
-      readings('water_temp_c').then(setTemp).catch(() => setTemp([])),
-      readings('light_lux').then(setLight).catch(() => setLight([])),
-    ]).finally(() => setLoading(false));
+    void readings('water_temp_c')
+      .then(setTemp)
+      .catch(() => setTemp([]))
+      .finally(() => setLoading(false));
     void api<PlanterEvent[]>(`/api/planters/${p.id}/events?limit=500&from=${from}`)
       .then((events) =>
         setRuns(events.filter((e) => e.type === 'pump_run' && e.payload?.on === true).map((e) => e.ts)),
@@ -349,7 +346,6 @@ function History({
       <div className="card history">
         <div className="legend">
           <span><span className="legend__line" style={{ background: 'var(--green)' }} />Water temperature</span>
-          <span><span className="legend__line" style={{ background: 'var(--chip-amber-dot)' }} />Light level</span>
           <span><span className="legend__bar" />Pump run</span>
         </div>
 
@@ -361,16 +357,6 @@ function History({
           format={(v) => `${trimZero(v)} °C`}
           loading={loading}
           title={`Water temperature over the last ${rangeMs / 3_600_000} hours`}
-        />
-        <LineChart
-          points={light}
-          from={from}
-          to={to}
-          colour="var(--chip-amber-dot)"
-          format={luxLabel}
-          zeroFloor
-          loading={loading}
-          title={`Light level over the last ${rangeMs / 3_600_000} hours`}
         />
         <PumpStrip runs={runs} from={from} to={to} />
       </div>

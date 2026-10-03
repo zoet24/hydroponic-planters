@@ -18,8 +18,8 @@ export interface PlanterView {
   };
   reported: {
     waterTempC?: number;
-    lightLux?: number;
     waterOk?: boolean;
+    nutrientDoses?: number;
     pumpBlocked?: boolean;
     pumpOn?: boolean;
     speedPercent?: number;
@@ -33,7 +33,7 @@ export interface PlanterView {
   syncing: boolean;
   syncStale: boolean;
   flowEstimateLpm: number;
-  alerts: { kind: string; severity: 'warning' | 'critical'; message: string }[];
+  alerts: { kind: string; severity: 'critical' | 'warning' | 'info'; message: string }[];
   phCheckDueAt: number | null;
   nutrientsDueAt: number | null;
   nutrientsStatus: 'ok' | 'due' | 'overdue' | null;
@@ -46,9 +46,8 @@ export interface Preset {
   plantType: string;
   description?: string;
   pump: { intervalHours: number; runtimeMinutes: number; speedPercent: number };
-  light: { minLux: number };
   waterTempC: { min: number; max: number };
   ph: { targetMin: number; targetMax: number; checkIntervalDays: number };
-  nutrients: { strengthMultiplier: number; scheduleDays: number };
+  nutrients: { strengthMultiplier: number; scheduleDays: number; guidance: string };
 }
 

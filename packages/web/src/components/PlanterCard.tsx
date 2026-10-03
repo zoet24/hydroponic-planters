@@ -3,7 +3,7 @@ import { Chip } from './Chip';
 import {
   describePlanter,
   isSyncing,
-  luxCompact,
+  waterLabel,
   nutrientChip,
   phChip,
   pumpReadout,
@@ -62,7 +62,7 @@ export function PlanterCard({
 
       <div className="readouts">
         <Readout label="Water" value={noData ? 'No data' : tempLabel(p.reported.waterTempC)} muted={noData} />
-        <Readout label="Light" value={noData ? 'No data' : luxCompact(p.reported.lightLux)} muted={noData} />
+        <Readout label="Water level" value={noData ? 'No data' : waterLabel(p.reported.waterOk)} muted={noData} />
         <Readout label={pump.label} value={pump.value} muted={pump.muted} />
       </div>
 

@@ -157,7 +157,7 @@ function ClaimDone({ planterId }: { planterId: string }) {
   if (!planter) return <Screen><p className="lede">Waiting for the planter…</p></Screen>;
 
   const sensorsReporting =
-    planter.reported.waterTempC !== undefined || planter.reported.lightLux !== undefined;
+    planter.reported.waterTempC !== undefined || planter.reported.waterOk !== undefined;
   const presetName = planter.preset?.name ?? 'Preset';
 
   return (
