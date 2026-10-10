@@ -245,13 +245,23 @@ text_sensor:
       return {result};
 
 output:
+  # GPIO03 and GPIO04 are swapped relative to the obvious reading of the wiring.
+  # The motor leads are connected the other way round at the driver, so the
+  # original mapping drove the pump backwards: it hummed and moved no water.
+  # Confirmed on the real tower on 10 Oct 2026 by publishing "reverse" to
+  # fan/pump/direction/command, which made it pump properly.
+  #
+  # Corrected here rather than by leaving the device's direction set to reverse,
+  # because that lived only in the board's restored flash state -- invisible in
+  # the repo and lost on any erase. Nothing publishes direction; forward is now
+  # mechanically correct.
   - platform: ledc
-    pin: GPIO03
+    pin: GPIO04
     id: motor_forward_pin
     frequency: 1000 Hz
 
   - platform: ledc
-    pin: GPIO04
+    pin: GPIO03
     id: motor_reverse_pin
     frequency: 1000 Hz
 
