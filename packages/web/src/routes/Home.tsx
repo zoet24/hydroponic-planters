@@ -6,9 +6,16 @@ import { fleetSummary } from '../lib/format';
 import { usePlanters } from '../PlantersContext';
 
 export function Home() {
-  const { planters, connection } = usePlanters();
+  const { planters: fleet, connection } = usePlanters();
   const dev = useDevDrawer();
   const longPress = useLongPress(() => dev.setOpen(true));
+
+  // The dashboard shows only what has been added. The backend discovers any
+  // device that publishes, so without this gate a planter would appear the
+  // instant it powered up and the fleet could never start empty.
+  const planters = fleet.filter((p) => p.added);
+  const waiting = fleet.length - planters.length;
+
   const arriving = useArrivals(planters.map((p) => p.id));
 
   return (
@@ -35,6 +42,12 @@ export function Home() {
         <h1>Your planters</h1>
         <p className="lede">{fleetSummary(planters)}</p>
       </div>
+
+      {waiting > 0 && planters.length > 0 && (
+        <Link to="/add" className="note-card note-card--link">
+          {waiting === 1 ? '1 planter is' : `${waiting} planters are`} ready to add
+        </Link>
+      )}
 
       {planters.length === 0 ? <EmptyState /> : (
         <div className="planter-grid">
@@ -90,7 +103,8 @@ function EmptyState() {
     <div className="card empty">
       <h2 className="card__title">No planters yet</h2>
       <p className="card__sub">
-        Every planter has a QR code on its side. Scan it with your phone camera to add it here.
+        Plug a planter in and put it on the same network as this app. It will show up under Add
+        planter within a few seconds.
       </p>
       <Link to="/add" className="button button--primary">
         Add your first planter

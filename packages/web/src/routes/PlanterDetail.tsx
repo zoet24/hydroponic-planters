@@ -33,7 +33,7 @@ export function PlanterDetail() {
     return (
       <div className="page">
         <Link to="/" className="backlink">Your planters</Link>
-        <p className="lede">No planter with that ID. It may not have been claimed yet.</p>
+        <p className="lede">No planter with that ID. It may not have been added yet.</p>
       </div>
     );
   }
@@ -185,15 +185,23 @@ function Stat({
 
 function Config({ planter: p }: { planter: PlanterView }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const send = async (body: Record<string, unknown>) => {
+  /** Every control here goes through this, so a refusal is always visible. */
+  const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
+    setError(null);
     try {
-      await post(`/api/planters/${p.id}/desired`, body);
+      await action();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'That did not work.');
     } finally {
       setBusy(false);
     }
   };
+
+  const send = (body: Record<string, unknown>) =>
+    run(() => post(`/api/planters/${p.id}/desired`, body));
 
   return (
     <section className="section">
@@ -270,19 +278,31 @@ function Config({ planter: p }: { planter: PlanterView }) {
         </div>
 
         <div className="row">
-          <button type="button" className="button button--primary" disabled={busy}
-            onClick={() => post(`/api/planters/${p.id}/pump/run-now`)}>
-            Run pump now
-          </button>
+          {/* Stop replaces Run while the pump is actually running, so the
+              primary control is always the one that does something. */}
+          {p.reported.pumpOn ? (
+            <button type="button" className="button button--primary" disabled={busy || !p.online}
+              onClick={() => run(() => post(`/api/planters/${p.id}/pump/stop`))}>
+              Stop pump
+            </button>
+          ) : (
+            <button type="button" className="button button--primary" disabled={busy || !p.online}
+              onClick={() => run(() => post(`/api/planters/${p.id}/pump/run-now`))}>
+              Run pump now
+            </button>
+          )}
+          {/* Distinct from Stop: this is about every future run, not this one. */}
           <button type="button" className="button" disabled={busy}
             onClick={() => send({ pumpEnable: !p.desired.pumpEnable })}>
-            {p.desired.pumpEnable ? 'Pause pump' : 'Resume pump'}
+            {p.desired.pumpEnable ? 'Pause schedule' : 'Resume schedule'}
           </button>
           <button type="button" className="button" disabled={busy}
-            onClick={() => post(`/api/planters/${p.id}/nutrients`)}>
+            onClick={() => run(() => post(`/api/planters/${p.id}/nutrients`))}>
             I added nutrients
           </button>
         </div>
+
+        {error && <p className="formerror" role="alert">{error}</p>}
       </div>
     </section>
   );

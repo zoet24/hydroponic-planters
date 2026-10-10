@@ -6,7 +6,7 @@ export interface PlanterView {
   plantType: string | null;
   presetId: string | null;
   preset: Preset | null;
-  claimed: boolean;
+  added: boolean;
   simulated: boolean;
   online: boolean;
   lastSeenAt: number | null;

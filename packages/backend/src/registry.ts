@@ -26,7 +26,7 @@ export interface PlanterView {
   plantType: string | null;
   presetId: string | null;
   preset: Preset | null;
-  claimed: boolean;
+  added: boolean;
   simulated: boolean;
   online: boolean;
   lastSeenAt: number | null;
@@ -52,7 +52,7 @@ interface PlanterRecord {
   reported: ReportedState;
   online: boolean;
   lastSeenAt: number | null;
-  claimedAt: number | null;
+  addedAt: number | null;
   desiredSetAt: number;
 }
 
@@ -75,7 +75,7 @@ export const setSimulatedIds = (ids: string[]): void => {
  *
  * `pnpm provision` runs in its own process and writes straight to the database,
  * so a planter created while the backend is running is absent from the in-memory
- * fleet until something reloads it. Without this, claiming a freshly provisioned
+ * fleet until something reloads it. Without this, adding a freshly provisioned
  * planter 404s even though its token is perfectly valid.
  */
 export function getPlanter(id: string): PlanterRecord | undefined {
@@ -96,7 +96,7 @@ export function getPlanter(id: string): PlanterRecord | undefined {
     reported: ReportedState.catch({}).parse(safeJson(row.reported_json)),
     online: false,
     lastSeenAt: (row.last_seen_at as number | null) ?? null,
-    claimedAt: (row.claimed_at as number | null) ?? null,
+    addedAt: (row.claimed_at as number | null) ?? null,
     desiredSetAt: 0,
   };
   fleet.set(id, record);
@@ -105,12 +105,14 @@ export function getPlanter(id: string): PlanterRecord | undefined {
 export const allPlanters = (): PlanterRecord[] => [...fleet.values()];
 
 const upsert = db.prepare(`
+  -- claimed_at is the historical column name for what the app now calls
+  -- "added". Kept as-is so an existing database needs no migration.
   INSERT INTO planters (id, name, plant_type, preset_id, desired_json, reported_json, online, last_seen_at, claimed_at, created_at)
-  VALUES (@id, @name, @plantType, @presetId, @desired, @reported, @online, @lastSeenAt, @claimedAt, @createdAt)
+  VALUES (@id, @name, @plantType, @presetId, @desired, @reported, @online, @lastSeenAt, @addedAt, @createdAt)
   ON CONFLICT(id) DO UPDATE SET
     name = @name, plant_type = @plantType, preset_id = @presetId,
     desired_json = @desired, reported_json = @reported,
-    online = @online, last_seen_at = @lastSeenAt, claimed_at = @claimedAt
+    online = @online, last_seen_at = @lastSeenAt, claimed_at = @addedAt
 `);
 
 export function persist(record: PlanterRecord): void {
@@ -123,7 +125,7 @@ export function persist(record: PlanterRecord): void {
     reported: JSON.stringify(record.reported),
     online: record.online ? 1 : 0,
     lastSeenAt: record.lastSeenAt,
-    claimedAt: record.claimedAt,
+    addedAt: record.addedAt,
     createdAt: Date.now(),
   });
 }
@@ -149,7 +151,7 @@ export function reloadFromDb(): number {
     record.name = String(row.name);
     record.plantType = (row.plant_type as string | null) ?? null;
     record.presetId = (row.preset_id as string | null) ?? null;
-    record.claimedAt = (row.claimed_at as number | null) ?? null;
+    record.addedAt = (row.claimed_at as number | null) ?? null;
     record.desired = DesiredState.catch(DEFAULT_DESIRED).parse(safeJson(row.desired_json));
     record.desiredSetAt = Date.now();
   }
@@ -174,14 +176,14 @@ function hydrateRow(row: Record<string, unknown>): void {
     reported: ReportedState.catch({}).parse(safeJson(row.reported_json)),
     online: false, // proven by a retained status message, never assumed
     lastSeenAt: (row.last_seen_at as number | null) ?? null,
-    claimedAt: (row.claimed_at as number | null) ?? null,
+    addedAt: (row.claimed_at as number | null) ?? null,
     desiredSetAt: 0,
   });
 }
 
 /**
  * A device we have never seen announces itself simply by publishing. We record
- * it unclaimed — the claim flow decides whether it shows up as yours.
+ * it un-added — the Add planter flow decides whether it shows on the dashboard.
  */
 export function ensurePlanter(id: string): PlanterRecord {
   const existing = fleet.get(id);
@@ -196,7 +198,7 @@ export function ensurePlanter(id: string): PlanterRecord {
     reported: {},
     online: false,
     lastSeenAt: null,
-    claimedAt: null,
+    addedAt: null,
     desiredSetAt: 0,
   };
   fleet.set(id, record);
@@ -226,7 +228,7 @@ export function toView(record: PlanterRecord, now = Date.now()): PlanterView {
     plantType: record.plantType,
     presetId: record.presetId,
     preset,
-    claimed: record.claimedAt !== null,
+    added: record.addedAt !== null,
     simulated: simulatedIds.has(record.id),
     online: record.online,
     lastSeenAt: record.lastSeenAt,

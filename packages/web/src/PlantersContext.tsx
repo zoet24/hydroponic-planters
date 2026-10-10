@@ -75,12 +75,24 @@ export const usePlanter = (id: string | undefined): PlanterView | undefined =>
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: {
+      // Only declare JSON when there is a body. Fastify rejects a POST that
+      // claims application/json and sends nothing (FST_ERR_CTP_EMPTY_JSON_BODY),
+      // which 500s every bodyless button: Run pump now, Stop, I added nutrients.
+      ...(init?.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...init?.headers,
+    },
   });
-  const body = (await res.json().catch(() => null)) as T;
-  if (!res.ok && body === null) throw new Error(`${res.status} ${res.statusText}`);
-  return body;
+  const body = (await res.json().catch(() => null)) as T | { error?: string } | null;
+  if (!res.ok) {
+    // Throw on any failure, not only an empty one. The API answers 4xx with a
+    // JSON body explaining itself, and resolving those as success meant a
+    // refused command looked exactly like one that worked.
+    const message = (body as { error?: string } | null)?.error;
+    throw new Error(message ?? `${res.status} ${res.statusText}`);
+  }
+  return body as T;
 }
 
 export const post = <T,>(path: string, body?: unknown): Promise<T> =>

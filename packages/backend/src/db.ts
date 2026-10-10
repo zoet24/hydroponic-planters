@@ -38,13 +38,9 @@ CREATE TABLE IF NOT EXISTS planters (
   created_at    INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS claim_tokens (
-  token       TEXT PRIMARY KEY,
-  planter_id  TEXT NOT NULL,
-  created_at  INTEGER NOT NULL,
-  expires_at  INTEGER NOT NULL,
-  consumed_at INTEGER
-);
+-- Dropped with the QR claim flow. A planter is now added from inside the app,
+-- so there is no pairing secret to mint, print or expire.
+DROP TABLE IF EXISTS claim_tokens;
 
 CREATE TABLE IF NOT EXISTS readings (
   planter_id TEXT NOT NULL,
@@ -82,7 +78,7 @@ export type EventType =
   | 'online'
   | 'ph_checkin'
   | 'nutrients_added'
-  | 'claimed';
+  | 'added';
 
 const insertEvent = db.prepare(
   'INSERT INTO events (planter_id, ts, type, payload) VALUES (?, ?, ?, ?)',

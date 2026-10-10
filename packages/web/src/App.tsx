@@ -3,7 +3,6 @@ import { DevDrawer, DevDrawerProvider } from './components/DevDrawer';
 import { usePresenterMode } from './presenter';
 import { PlantersProvider } from './PlantersContext';
 import { AddPlanter } from './routes/AddPlanter';
-import { Claim } from './routes/Claim';
 import { Home } from './routes/Home';
 import { PlanterDetail } from './routes/PlanterDetail';
 import { PhCheck } from './routes/PhCheck';
@@ -31,7 +30,6 @@ function Shell() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/add" element={<AddPlanter />} />
-        <Route path="/claim" element={<Claim />} />
         {/* pH check is nested so the dashboard renders behind it: UI-HANDOFF
             calls for a modal on desktop and a full screen on the phone. */}
         <Route path="/planters/:id" element={<PlanterDetail />}>

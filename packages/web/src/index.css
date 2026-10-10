@@ -226,8 +226,14 @@ h1 {
   width: 44px;               /* the design's 44px touch target */
   height: 44px;
   margin-left: -10px;
+  padding: 0;
   color: var(--ink);
   border-radius: 10px;
+  /* Also worn by a <button> on multi-step screens, so reset the UA chrome. */
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
 }
 .iconbutton:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
@@ -258,6 +264,37 @@ h1 {
 .row-item--stacked { flex-direction: column; align-items: stretch; gap: 10px; }
 .row-item__line { display: flex; align-items: center; gap: 12px; }
 .rows-card:not(.rows-card--steps) .row-item { gap: 12px; font-size: 16px; }
+
+/* A row that is itself the control. Used by the Add planter list, where the
+   whole row is the tap target rather than a button tucked on the end. */
+.row-item--button {
+  width: 100%;
+  margin: 0;
+  padding: 14px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.row-item--button:hover .row-item__title { text-decoration: underline; }
+.row-item--button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.row-item__main { display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0; }
+.row-item__title { font-weight: 600; }
+.row-item__sub { font-size: 14px; color: var(--muted); }
+
+/* The note-card as a tappable prompt, for "N planters ready to add". */
+.note-card--link {
+  display: block;
+  text-decoration: none;
+  font-weight: 600;
+}
+.note-card--link:hover { text-decoration: underline; }
+.note-card--link::after { content: ' \2192'; }
+
+.field__hint { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.stack--buttons { gap: 12px; flex-grow: 0; }
 
 .numdot {
   width: 32px;

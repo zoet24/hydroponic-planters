@@ -11,8 +11,8 @@ Your architecture is sound. Six changes, all in the direction of less code:
 1. **SSE, not WebSocket.** Traffic is one-way (device → UI); commands go over ordinary `POST`. SSE is ~20 lines on each side, reconnects on its own with no library, and survives hotspot flakiness. WebSocket buys you nothing here.
 2. **Push whole planter objects, not diffs.** With ≤4 planters, send the full view model on every change. Deletes an entire category of bug and makes the "syncing → synced" transition trivially correct.
 3. **No `alerts` table.** Alerts are a pure function of `(reported state, active preset, now)`. Recompute on every push. Log them to `events` for the timeline. Nothing to go stale, nothing to reconcile.
-4. **The claim token never touches the device.** It's a registry secret that the backend mints and prints. Your `esphome.yaml` stays untouched and tokens become revocable without a reflash. Full reasoning in §7.
-5. **Scan the QR with the phone's native camera, not an in-app scanner.** `getUserMedia` needs a secure context, and you'll be serving `http://<laptop-ip>` over a hotspot. Native camera → opens Safari at your claim URL → app reads the token from the query string. Zero camera permissions, zero TLS. This also shapes the PWA story (§10.4).
+4. ~~**The claim token never touches the device.**~~ *(deferred — see §7)* It's a registry secret that the backend mints and prints. Your `esphome.yaml` stays untouched and tokens become revocable without a reflash. Full reasoning in §7.
+5. ~~**Scan the QR with the phone's native camera, not an in-app scanner.**~~ *(deferred — see §7)* `getUserMedia` needs a secure context, and you'll be serving `http://<laptop-ip>` over a hotspot. Native camera → opens Safari at your claim URL → app reads the token from the query string. Zero camera permissions, zero TLS. This also shapes the PWA story (§10.4).
 6. **Cut the custom preset editor** unless everything else is done by 30 Sep. The AI builder covers "arbitrary plant" more impressively, and a preset form is a lot of fiddly UI for one slide.
 
 One thing I'd add: **put the simulator's fault controls in the web UI**, gated behind `SIM_ENABLED`. Triggering low-water from your phone on stage instead of alt-tabbing to a terminal is worth an hour of work.
@@ -100,7 +100,7 @@ mqtt:
 wifi:
   ssid: !secret wifi_ssid          # currently AP-only — it can't join your hotspot
   password: !secret wifi_password
-  ap: { ssid: "Hydro AP", password: "hydro_tower" }
+  ap: { ssid: "Hydro AP", password: !secret ap_password }
 
 one_wire:
   - { platform: gpio, pin: GPIO05 }
@@ -233,7 +233,7 @@ planters (
   created_at    INTEGER NOT NULL
 )
 
-claim_tokens (
+claim_tokens (          -- DROPPED (§7 deferred)
   token        TEXT PRIMARY KEY,       -- 32 bytes, base64url
   planter_id   TEXT NOT NULL,
   created_at   INTEGER NOT NULL,
@@ -273,7 +273,7 @@ events (
   ts         INTEGER NOT NULL,
   type       TEXT NOT NULL,            -- pump_run | preset_applied | low_water
                                         -- | offline | online | ph_checkin
-                                        -- | nutrients_added | claimed
+                                        -- | nutrients_added | added
   payload    TEXT                       -- JSON
 )
 ```
@@ -308,7 +308,8 @@ POST  /api/planters/:id/nutrients      records a nutrients_added event
 GET   /api/presets
 POST  /api/presets                     custom (cut if short on time)
 POST  /api/presets/ai                  { plant } → AiPresetProposal — never applied
-POST  /api/claim                       { planterId, token } → Planter | 4xx
+POST  /api/planters/:id/add            { name?, presetId? } → Planter | 404
+POST  /api/planters/:id/remove         → Planter
 POST  /api/sim/:id/fault               { kind, on }   ── SIM_ENABLED only
 POST  /api/sim/time-scale              { scale }      ── SIM_ENABLED only
 ```
@@ -561,7 +562,19 @@ Home cards carry status chips only — `online`, `water OK`, `pH check due soon`
 
 ---
 
-## 7. QR claim flow
+## 7. QR claim flow — deferred
+
+> **Not in this version (5 Oct).** The QR flow is cut: it needs a printed code
+> physically attached to the planter, and the 3D printing to mount one was not
+> going to be ready. A planter is now added from inside the app, choosing from
+> the devices the backend has already discovered on MQTT.
+>
+> What that costs: adding a planter is no longer gated on physical access to it.
+> On a shared network anyone running the app can add any planter they can see.
+> That is acceptable for a single-user demo on a private hotspot and would not
+> be for anything real, which is why this section is kept rather than deleted.
+>
+> The rest of this section describes the deferred design.
 
 ### Recommended: backend-minted token, device knows nothing
 
@@ -704,7 +717,7 @@ One command, run ~10 minutes before you walk on so the timestamps look fresh:
 
 **Seed the RNG.** A fixed seed means the charts in your backup video and the charts on stage are the same shape, so if you fall back to the video mid-demo nobody notices the switch.
 
-`pnpm provision --reclaim <id>` stays as it is for rehearsals — it re-mints a token for one planter without touching history.
+`pnpm provision --unadd <id>` stays as it is for rehearsals — it takes one planter back off the dashboard without touching history.
 
 ### Choreography
 
@@ -717,8 +730,8 @@ You're projecting the laptop and scanning with your phone. **The phone is an inp
 
 ### Pre-flight, the morning of
 
-1. `pnpm qr` — regenerate QR codes against today's laptop IP, print, stick on.
-2. `pnpm demo:reset`.
+1. `pnpm demo:reset` — empty dashboard, fresh history.
+2. Check the board is on the hotspot and publishing.
 3. Hit `/api/presets/ai` once to pre-warm the API path.
 4. Confirm the hotspot is on **2.4 GHz** and the board is online.
 5. Backup video open in a tab.
@@ -729,7 +742,7 @@ You're projecting the laptop and scanning with your phone. **The phone is an inp
 
 **Will bite you** — address these early:
 
-1. **The laptop's IP changes on the hotspot**, and the QR codes encode it. `pnpm qr` regenerates; do it on the morning, not in September. *Alternative: try `laptop.local` mDNS from the phone during the Tue 22 test — if Bonjour works over your hotspot, hardcode that and the problem disappears.*
+1. ~~**The laptop's IP changes on the hotspot**, and the QR codes encode it.~~ **Solved (5 Oct).** `mqtt_host` is the laptop's mDNS name (`Zoes-MacBook-Pro-3.local`), verified working from the ESP32-C3 — so a new DHCP address no longer needs a reflash. The QR codes that also encoded the IP are gone with §7.
 2. **Hotspot client isolation.** Some hotspots let clients reach the internet but not each other, which breaks ESP32 → laptop entirely. Your phone reaching the laptop does **not** prove the board will. Only the bench smoke test answers this.
 3. **The ESP32-C3 is 2.4 GHz only.** On iPhone: **Settings → Personal Hotspot → Maximise Compatibility ON**, which drops the hotspot to 2.4 GHz. Turn it on now and leave it on, so you aren't discovering its side effects on the day. Keep SSID and password stable — changing either means a reflash.
 4. **No HTTPS means no service worker.** iOS treats `http://<ip>` as insecure, so "PWA" here is Add-to-Home-Screen (fullscreen, icon) without offline caching. Accept it, or spend half a day on mkcert and then trusting the CA on your phone. My advice: accept it, and don't say "PWA" on stage without the asterisk. This is also why §0.5 uses the native camera.
@@ -745,7 +758,7 @@ You're projecting the laptop and scanning with your phone. **The phone is an inp
 |---|---|
 | `run_pump_now` type | **Button** — `button/run_pump_now/command`, payload `PRESS` |
 | Scheduler location | **On the device.** UI shows next scheduled run; `Run Pump Now` for the live tower |
-| Unclaim | `pnpm provision --reclaim <id>`, no UI |
+| Remove from dashboard | `pnpm provision --unadd <id>`, or `POST /api/planters/:id/remove` |
 | GPIOs | I²C 6/7, one-wire 5, float 10 — pending your check against the C3 Super Mini pinout; avoid 2, 8, 9 |
 | pH check-in anchor | Last check-in, reminders clamped to waking hours |
 | Simulated planters | Three — one real, two simulated |

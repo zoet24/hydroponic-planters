@@ -12,7 +12,18 @@ const BROKER = process.env.MQTT_URL ?? 'mqtt://127.0.0.1:1883';
 const COUNT = Math.max(1, Number(process.env.SIM_COUNT ?? 3));
 const TICK_MS = 2000;
 
-const IDS = Array.from({ length: COUNT }, (_, i) => `planter-${String(i + 1).padStart(3, '0')}`);
+/**
+ * Where the numbering starts. The real board claims an id too, and two devices
+ * publishing under one id would fight over the same topics — so once hardware
+ * joins, run the simulator from the next number up:
+ *
+ *   SIM_START=2 SIM_COUNT=2 pnpm dev:sim    # planter-002, planter-003
+ */
+const START = Math.max(1, Number(process.env.SIM_START ?? 1));
+
+const IDS = Array.from({ length: COUNT }, (_, i) =>
+  `planter-${String(i + START).padStart(3, '0')}`,
+);
 
 // Distinct personalities, so the fleet does not look like one planter copied.
 const PROFILES = [

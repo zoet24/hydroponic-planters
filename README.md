@@ -68,13 +68,15 @@ the Presets grid are hidden. Flip this on when the screen exists.
 pnpm demo:reset
 ```
 
-Wipes history and claim state, re-mints a single-use code per planter,
-regenerates the QR codes **against today's address**, seeds 24 hours of history
-and tells the running backend to re-read it. Run it about ten minutes before you
-go on, so "last seen" reads as fresh.
+Wipes history, takes every planter back off the dashboard, seeds 24 hours of
+history and tells the running backend to re-read it. Run it about ten minutes
+before you go on, so "last seen" reads as fresh.
 
-`--host 192.168.1.42` overrides the detected address; `--keepClaims` leaves
-planters claimed, for a rehearsal that skips the scan.
+The dashboard is left **empty on purpose**: the talk opens on an empty dashboard
+and adding a planter is the first thing demonstrated.
+
+`--staged` adds the cast up front instead, for a rehearsal that starts after
+onboarding. `--hours 48` seeds more history.
 
 The backend keeps planters in memory, so anything written straight to SQLite
 while it runs would be overwritten on the next MQTT message. The script posts to
@@ -95,16 +97,32 @@ values move, not how much history exists. Seed before a demo so the charts are f
 ## Provisioning a planter
 
 ```bash
-pnpm provision --id planter-004 --name "Shelf 4"   # mint a code, write qr/planter-004.png
-pnpm provision --reclaim planter-002               # fresh code for a rehearsal
-pnpm qr                                            # rewrite every QR for today's IP
+pnpm provision --id planter-004 --name "Shelf 4"   # create the row ahead of time
+pnpm provision --unadd planter-002                 # back to the Add planter list
 pnpm provision --list
 ```
 
-The QR encodes this laptop's current LAN address, which a phone hotspot changes
-on most reconnects — so regenerate and reprint on the day rather than in advance.
+Mostly optional. The backend discovers any device that publishes to MQTT and
+creates the row itself, so provisioning is only for seeding a planter before it
+exists, or for inspecting what the dashboard is showing.
 
-Useful env vars: `SIM_COUNT` (default 3), `MQTT_URL`, `DB_PATH`, `SIM_ENABLED=false`.
+A discovered planter stays **off** the dashboard until it is added from inside
+the app, which is what keeps the fleet empty until you onboard something.
+
+Useful env vars: `SIM_COUNT` (default 3), `SIM_START` (default 1), `MQTT_URL`,
+`DB_PATH`, `SIM_ENABLED=false`.
+
+## Running alongside the real planter
+
+The board claims an MQTT id from `planter_id` in `firmware/esphome.yaml`
+(`planter-001`). Two devices publishing under one id fight over the same topics,
+so start the simulator above it:
+
+```bash
+SIM_START=2 SIM_COUNT=2 pnpm dev:sim
+```
+
+That gives one real planter and two simulated ones, which is the demo as planned.
 
 ## Packages
 

@@ -81,8 +81,8 @@ export function describeEvent(e: TimelineItem): string {
       return p.strengthMultiplier
         ? `Nutrients added at ${String(p.strengthMultiplier)}× label strength`
         : 'Nutrients added';
-    case 'claimed':
-      return 'Planter claimed';
+    case 'added':
+      return 'Planter added';
     default:
       return e.type.replace(/_/g, ' ');
   }
@@ -97,7 +97,7 @@ export function eventTone(type: string): EventTone {
       return 'amber';
     case 'pump_run':
     case 'online':
-    case 'claimed':
+    case 'added':
       return 'green';
     default:
       return 'grey';
@@ -118,7 +118,7 @@ export function eventIcon(type: string): EventIcon {
       return 'water';
     case 'online':
     case 'offline':
-    case 'claimed':
+    case 'added':
       return 'plug';
     default:
       return 'dot';

@@ -56,6 +56,20 @@ function ingest(topic: string, raw: string): void {
       if (online !== record.online) {
         record.online = online;
         recordEvent(deviceId, online ? 'online' : 'offline', undefined, now);
+        // A device that has just come up has forgotten whatever the app set.
+        // The fan in particular always boots at speed 0, so desired and
+        // reported can never agree again on their own and the sync chip would
+        // stay amber for the rest of the session. Re-assert on the birth
+        // message so stored intent survives a reboot -- including a reboot of
+        // the backend, where `online` starts false and the retained status
+        // counts as a transition.
+        //
+        // This makes the app the source of truth: a value changed in the
+        // device's own web_server UI is overwritten the next time it restarts.
+        if (online) {
+          record.desiredSetAt = now;
+          publishDesired(record, record.desired);
+        }
       }
       break;
     }
@@ -158,6 +172,21 @@ export function publishDesired(record: PlanterRecord, next: Partial<DesiredState
 
 export function publishRunNow(planterId: string): void {
   client.publish(deviceTopics(planterId).runPumpNowCommand, PRESS, { qos: 0, retain: false });
+}
+
+/**
+ * Stop a run already in progress.
+ *
+ * Turning the fan off directly, rather than pressing a dedicated firmware
+ * button, so this works on firmware that is already flashed. The `run_pump`
+ * script is left holding its delay, which is harmless: its only remaining action
+ * is a `fan.turn_off` on a fan that is already off.
+ */
+export function publishPumpStop(planterId: string): void {
+  client.publish(deviceTopics(planterId).pumpCommand, onOff.encode(false), {
+    qos: 0,
+    retain: false,
+  });
 }
 
 export function publishFault(planterId: string, kind: FaultKind, on: boolean): void {

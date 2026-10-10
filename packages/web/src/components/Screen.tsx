@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-/** The phone-width shell the claim and pH screens share. */
+/** The phone-width shell the Add planter and pH screens share. */
 export function Screen({ children }: { children: React.ReactNode }) {
   return <div className="screen">{children}</div>;
 }
@@ -8,20 +8,34 @@ export function Screen({ children }: { children: React.ReactNode }) {
 export function ScreenHead({
   title,
   back,
+  onBack,
   backLabel,
 }: {
   title: string;
-  back: string;
+  /** Where back goes. Omitted when `onBack` steps within the same screen. */
+  back?: string;
+  /** For a multi-step screen: go back a step rather than navigate away. */
+  onBack?: () => void;
   /** Names the destination, not the current page — "Back to your planters". */
   backLabel: string;
 }) {
+  const arrow = (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  );
+
   return (
     <div className="screen__head">
-      <Link to={back} className="iconbutton" aria-label={backLabel}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M15 5l-7 7 7 7" />
-        </svg>
-      </Link>
+      {onBack ? (
+        <button type="button" onClick={onBack} className="iconbutton" aria-label={backLabel}>
+          {arrow}
+        </button>
+      ) : (
+        <Link to={back ?? '/'} className="iconbutton" aria-label={backLabel}>
+          {arrow}
+        </Link>
+      )}
       <h1 className="screen__title">{title}</h1>
     </div>
   );

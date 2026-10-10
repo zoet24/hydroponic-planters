@@ -58,9 +58,9 @@ describe('collapsePumpRuns', () => {
       ev('low_water', base + 10 * MIN),
       ev('pump_run', base + 3 * MIN, { on: false }),
       ev('pump_run', base, { on: true }),
-      ev('claimed', base - MIN),
+      ev('added', base - MIN),
     ]);
-    expect(items.map((i) => i.type)).toEqual(['low_water', 'pump_run', 'claimed']);
+    expect(items.map((i) => i.type)).toEqual(['low_water', 'pump_run', 'added']);
   });
 
   it('survives a stop with no matching start', () => {
@@ -83,7 +83,7 @@ describe('describeEvent', () => {
     ['low_water', null, 'Low water detected'],
     ['ph_checkin', { ph: 6.1, status: 'in_range' }, 'pH reading logged: 6.1, in range'],
     ['nutrients_added', { strengthMultiplier: 0.5 }, 'Nutrients added at 0.5× label strength'],
-    ['claimed', null, 'Planter claimed'],
+    ['added', null, 'Planter added'],
   ])('describes %s', (type, payload, expected) => {
     expect(describeEvent(ev(type, base, payload))).toBe(expected);
   });

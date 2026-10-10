@@ -160,6 +160,16 @@ switch:
     id: pump_enable
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
+    on_turn_off:
+      # Disabling the pump has to stop a run already in progress, not just
+      # refuse the next one. `run_pump` only tests this switch when it starts,
+      # so without this a run carries on to the end of its delay -- which is
+      # what the simulator already did, leaving the two disagreeing about the
+      # same button. Script first: stopping it cancels the pending delay and
+      # with it the script's own turn-off, so the explicit one comes second.
+      - script.stop: run_pump
+      - fan.turn_off: pump
+      - logger.log: "Pump disabled, run stopped"
 
 number:
   - platform: template

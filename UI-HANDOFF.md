@@ -7,17 +7,22 @@ Reference for building the `web` package. The screenshots in `design/screens/` a
 | Screenshot | Route | Notes |
 |---|---|---|
 | Home | `/` | One card per planter: name, preset, real or simulated, status chips, three readouts. "Add planter" opens the instructions screen. |
-| Add a planter | `/add` | Instructions only: open the phone camera, scan the QR, tap the link. No in-app scanner. |
-| Claim: confirm | `/claim?d=…&t=…` | Shows the planter ID, a name field, a preset select and one Claim button. |
-| Claim: done | after claim | Connected and Sensors reporting rows, then per-field sync chips that clear one at a time. |
-| Claim: code expired | `/claim` (expired token) | Loud error. A consumed token opens the planter instead of erroring. Unknown device gets a similar error screen (not drawn). |
+| Add a planter: pick | `/add` | Lists planters the backend has discovered but that are not on the dashboard, each with its live online state. No QR, no camera. |
+| Add a planter: set up | `/add` (one chosen) | Planter ID, a name field and a preset select. One "Add planter" button. Back steps to the list, not out of the screen. |
+| Add a planter: done | after adding | Connected and Sensors reporting rows, then per-field sync chips that clear one at a time. |
 | Planter detail | `/planters/:id` | Four stacked sections, no tabs: Live, Config, History, Timeline. |
 
-> **Superseded 3 Oct:** the light sensor was cut when the electronics were
-> finalised. The artboards still draw a Light level stat card, a lux readout on
-> the home cards and a light series in the History chart. The built app has none
-> of these — Live has three cards, History has one chart, and there is no
-> "too dim" alert. Treat those parts of the canvas as out of date.
+> **Updated 5 Oct:** the QR claim flow was cut from this version. A planter is
+> now added from inside the app, from a list of what the backend has discovered.
+> The canvas still shows the three Claim artboards; they describe a flow that no
+> longer exists. QR pairing is deferred, not abandoned — DESIGN.md §7 keeps the
+> reasoning.
+
+> **Updated 3 Oct, canvas v7:** the light sensor was cut when the electronics
+> were finalised, and the artboards now match. `Main` shows Water level where
+> the lux readout was; `Dashboard` has three Live cards instead of four, one
+> History chart instead of two, and no light series in the legend. Both boards
+> also show the nutrient reminder chip. There is no "too dim" alert anywhere.
 | Presets | `/planters/:id/preset` | Grid of built-in presets plus a "Create with AI" card. |
 | AI preset builder | `/planters/:id/ai` | Proposal table, amber warning row for anything clamped, rationale, safety checks, Apply and Discard. A carrot-style "unsuitable" card is also drawn. A cached-fallback label ("cached, no network") is not drawn. |
 | pH check | `/planters/:id/ph` | Full screen on phone, modal on desktop. Number stepper, scale with target band, advice card. |

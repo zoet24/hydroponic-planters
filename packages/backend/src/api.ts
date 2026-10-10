@@ -9,10 +9,9 @@ import {
   presetToDesired,
   TIME_SCALE,
 } from '@planter/shared';
-import { consumeToken, inspectToken } from './claim';
 import { config } from './config';
 import { db, readingsBetween, recentEvents, recordEvent } from './db';
-import { publishDesired, publishFault, publishRunNow, publishTimeScale } from './mqtt';
+import { publishDesired, publishFault, publishPumpStop, publishRunNow, publishTimeScale } from './mqtt';
 import {
   allPlanters,
   applyPreset,
@@ -27,6 +26,28 @@ import { addClient, broadcast, markDirty } from './sse';
 const IdParam = z.object({ id: z.string().min(1) });
 
 export async function routes(app: FastifyInstance): Promise<void> {
+  /**
+   * Treat an empty JSON body as {}.
+   *
+   * Several endpoints take no body, and a client that sets
+   * `Content-Type: application/json` and sends nothing otherwise trips
+   * FST_ERR_CTP_EMPTY_JSON_BODY and 500s. That silently broke every bodyless
+   * button in the app -- Run pump now, Stop pump, I added nutrients -- because
+   * the fetch helper sent the header unconditionally.
+   */
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_req, body: string, done) => {
+      if (body === '') return done(null, {});
+      try {
+        done(null, JSON.parse(body));
+      } catch (err) {
+        done(err as Error, undefined);
+      }
+    },
+  );
+
   app.get('/api/health', async () => ({ ok: true, planters: allPlanters().length }));
 
   /**
@@ -108,8 +129,23 @@ export async function routes(app: FastifyInstance): Promise<void> {
 
   app.post('/api/planters/:id/pump/run-now', async (req, reply) => {
     const { id } = IdParam.parse(req.params);
-    if (!getPlanter(id)) return reply.code(404).send({ error: 'unknown planter' });
+    const record = getPlanter(id);
+    if (!record) return reply.code(404).send({ error: 'unknown planter' });
+    // An offline planter cannot act on this. Returning ok anyway published the
+    // press into the void and told the UI it had worked, so a dead planter and
+    // a working one looked identical.
+    if (!record.online) return reply.code(409).send({ error: 'planter is offline' });
     publishRunNow(id);
+    return { ok: true };
+  });
+
+  /** Stop a run in progress. Does not change the schedule. */
+  app.post('/api/planters/:id/pump/stop', async (req, reply) => {
+    const { id } = IdParam.parse(req.params);
+    const record = getPlanter(id);
+    if (!record) return reply.code(404).send({ error: 'unknown planter' });
+    if (!record.online) return reply.code(409).send({ error: 'planter is offline' });
+    publishPumpStop(id);
     return { ok: true };
   });
 
@@ -184,63 +220,60 @@ export async function routes(app: FastifyInstance): Promise<void> {
     }));
   });
 
-  // ── Claim flow ────────────────────────────────────────────────────────────
-  //
-  // Preview is read-only: the confirm screen needs to know whether a code is
-  // good before anyone taps the button, and looking must not consume it.
+  /**
+   * Add a discovered planter to the dashboard.
+   *
+   * Replaces the QR claim flow. The backend still auto-discovers anything that
+   * publishes, but a planter stays off the dashboard until it is added here, so
+   * the fleet starts empty and onboarding is a deliberate step.
+   *
+   * Idempotent: adding an already-added planter updates its name and preset
+   * rather than erroring, so a double tap is harmless.
+   */
+  app.post('/api/planters/:id/add', async (req, reply) => {
+    const { id } = IdParam.parse(req.params);
+    const record = getPlanter(id);
+    if (!record) return reply.code(404).send({ error: 'unknown planter' });
 
-  app.get('/api/claim', async (req) => {
-    const q = z.object({ d: z.string().min(1), t: z.string().min(1) }).parse(req.query);
-    const outcome = inspectToken(q.d, q.t);
-    const record = getPlanter(q.d);
-    return {
-      outcome,
-      planter: outcome === 'unknown' || !record ? null : toView(record),
-    };
-  });
-
-  app.post('/api/claim', async (req, reply) => {
     const body = z
       .object({
-        planterId: z.string().min(1),
-        token: z.string().min(1),
         name: z.string().min(1).max(60).optional(),
         presetId: z.string().min(1).optional(),
       })
-      .parse(req.body);
+      .parse(req.body ?? {});
 
-    const record = getPlanter(body.planterId);
-    if (!record) return reply.code(404).send({ outcome: 'unknown', planter: null });
+    // Resolve the preset before touching the record: returning 404 half way
+    // through would leave the planter added in memory but not on disk.
+    const preset = body.presetId ? resolvePreset(body.presetId) : null;
+    if (body.presetId && !preset) return reply.code(404).send({ error: 'unknown preset' });
 
-    // An already-claimed code opens the planter rather than erroring: realistically
-    // that is you, re-scanning your own sticker.
-    const existing = inspectToken(body.planterId, body.token);
-    if (existing === 'already_claimed') {
-      return reply.code(200).send({ outcome: 'already_claimed', planter: toView(record) });
-    }
-
-    const outcome = consumeToken(body.planterId, body.token);
-    if (outcome !== 'ready') {
-      const code = outcome === 'expired' ? 410 : 404;
-      return reply.code(code).send({ outcome, planter: null });
-    }
-
-    record.claimedAt = Date.now();
+    const firstTime = record.addedAt === null;
+    if (firstTime) record.addedAt = Date.now();
     if (body.name) record.name = body.name;
 
-    if (body.presetId) {
-      const preset = resolvePreset(body.presetId);
-      if (preset) {
-        applyPreset(record, preset);
-        record.desired = presetToDesired(preset, record.desired.pumpEnable);
-        record.desiredSetAt = Date.now();
-        publishDesired(record, record.desired);
-      }
+    if (preset) {
+      applyPreset(record, preset);
+      record.desired = presetToDesired(preset, record.desired.pumpEnable);
+      record.desiredSetAt = Date.now();
+      publishDesired(record, record.desired);
     }
 
     persist(record);
-    markDirty(body.planterId);
-    return { outcome: 'ready', planter: toView(record) };
+    if (firstTime) recordEvent(id, 'added');
+    markDirty(id);
+    return toView(record);
+  });
+
+  /** Take a planter back off the dashboard. Its history and config are kept. */
+  app.post('/api/planters/:id/remove', async (req, reply) => {
+    const { id } = IdParam.parse(req.params);
+    const record = getPlanter(id);
+    if (!record) return reply.code(404).send({ error: 'unknown planter' });
+
+    record.addedAt = null;
+    persist(record);
+    markDirty(id);
+    return toView(record);
   });
 
   app.get('/api/presets', async () => BUILTIN_PRESETS);
