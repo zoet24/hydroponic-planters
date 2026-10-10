@@ -5,6 +5,8 @@
 export const PLOT = { x0: 44, x1: 700, y0: 20, y1: 100 } as const;
 
 export interface Point {
+  /** Optional free text, shown in the chart's tooltip when hovering it. */
+  note?: string | null;
   ts: number;
   value: number;
 }
@@ -54,6 +56,22 @@ export const trimZero = (n: number): string =>
 
 export const timeLabel = (ts: number): string =>
   new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+export const dateLabel = (ts: number): string =>
+  new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+/**
+ * Axis label suited to how much time is on screen.
+ *
+ * A clock face is useless across a month and a date is useless across an hour,
+ * so the span decides. Two days is the crossover: beyond that, times repeat
+ * often enough to be ambiguous.
+ */
+export function axisLabel(ts: number, spanMs: number): string {
+  if (spanMs <= 2 * 86_400_000) return timeLabel(ts);
+  if (spanMs <= 120 * 86_400_000) return dateLabel(ts);
+  return new Date(ts).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+}
 
 /**
  * The pH scale on the check-in screen: 4.5 to 8.0 across a 302 unit track,

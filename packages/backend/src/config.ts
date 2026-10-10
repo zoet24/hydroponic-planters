@@ -20,5 +20,5 @@ export const config = {
   /** At most one row per planter per metric per this interval. */
   readingThrottleMs: 10_000,
   /** Readings older than this are pruned on startup. */
-  readingRetentionDays: 7,
+  readingRetentionDays: 30,
 } as const;

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import {
   BUILTIN_PRESETS,
   DesiredState,
@@ -26,6 +26,21 @@ import { addClient, broadcast, markDirty } from './sse';
 const IdParam = z.object({ id: z.string().min(1) });
 
 export async function routes(app: FastifyInstance): Promise<void> {
+  /**
+   * A bad request answers 400 with the validation detail, not 500.
+   *
+   * This lives with the routes rather than in the server bootstrap so the API's
+   * error contract is part of the thing under test -- an empty note came back
+   * as 500 in tests and 400 in production while the two were separated.
+   */
+  app.setErrorHandler((err, _req, reply) => {
+    if (err instanceof ZodError) {
+      return reply.code(400).send({ error: 'invalid request', issues: err.issues });
+    }
+    console.error('[api]', err);
+    return reply.code(500).send({ error: 'internal error' });
+  });
+
   /**
    * Treat an empty JSON body as {}.
    *
@@ -84,11 +99,17 @@ export async function routes(app: FastifyInstance): Promise<void> {
     if (!record) return reply.code(404).send({ error: 'unknown planter' });
 
     const body = z
-      .object({ name: z.string().min(1).max(60).optional(), plantType: z.string().max(40).nullable().optional() })
+      .object({
+        name: z.string().min(1).max(60).optional(),
+        plantType: z.string().max(40).nullable().optional(),
+        /** Epoch ms the grower says it went in. Null clears it. */
+        plantedAt: z.number().int().nullable().optional(),
+      })
       .parse(req.body);
 
     if (body.name !== undefined) record.name = body.name;
     if (body.plantType !== undefined) record.plantType = body.plantType;
+    if (body.plantedAt !== undefined) record.plantedAt = body.plantedAt;
     persist(record);
     markDirty(id);
     return toView(record);
@@ -154,7 +175,9 @@ export async function routes(app: FastifyInstance): Promise<void> {
     const record = getPlanter(id);
     if (!record) return reply.code(404).send({ error: 'unknown planter' });
 
-    const { ph } = z.object({ ph: z.number() }).parse(req.body);
+    const { ph, note } = z
+      .object({ ph: z.number(), note: z.string().max(500).optional() })
+      .parse(req.body);
     const preset = resolvePreset(record.presetId);
     if (!preset) return reply.code(409).send({ error: 'assign a preset before checking pH' });
 
@@ -170,9 +193,14 @@ export async function routes(app: FastifyInstance): Promise<void> {
     });
 
     db.prepare(
-      'INSERT INTO ph_checkins (planter_id, ts, ph, status, action, advice) VALUES (?, ?, ?, ?, ?, ?)',
-    ).run(id, now, ph, result.status, result.action, result.advice);
-    recordEvent(id, 'ph_checkin', { ph, status: result.status, action: result.action }, now);
+      'INSERT INTO ph_checkins (planter_id, ts, ph, status, action, advice, note) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).run(id, now, ph, result.status, result.action, result.advice, note?.trim() || null);
+    recordEvent(
+      id,
+      'ph_checkin',
+      { ph, status: result.status, action: result.action, note: note?.trim() || undefined },
+      now,
+    );
     markDirty(id);
 
     return result;
@@ -182,12 +210,47 @@ export async function routes(app: FastifyInstance): Promise<void> {
     const { id } = IdParam.parse(req.params);
     const record = getPlanter(id);
     if (!record) return reply.code(404).send({ error: 'unknown planter' });
+    const { note } = z.object({ note: z.string().max(500).optional() }).parse(req.body ?? {});
     const preset = resolvePreset(record.presetId);
     recordEvent(id, 'nutrients_added', {
       strengthMultiplier: preset?.nutrients.strengthMultiplier ?? null,
+      note: note?.trim() || undefined,
     });
     markDirty(id);
     return { ok: true };
+  });
+
+  /** A free-text observation. Goes straight to the timeline. */
+  app.post('/api/planters/:id/notes', async (req, reply) => {
+    const { id } = IdParam.parse(req.params);
+    if (!getPlanter(id)) return reply.code(404).send({ error: 'unknown planter' });
+
+    const { text } = z.object({ text: z.string().min(1).max(500) }).parse(req.body);
+    recordEvent(id, 'note', { text: text.trim() });
+    markDirty(id);
+    return { ok: true };
+  });
+
+  /**
+   * pH check-ins as a plottable series.
+   *
+   * Kept separate from /readings because these are not device telemetry: they
+   * are typed in by hand, live in their own table and are never pruned, so the
+   * timeline can show pH further back than the 30 days of temperature we keep.
+   */
+  app.get('/api/planters/:id/ph-history', async (req) => {
+    const { id } = IdParam.parse(req.params);
+    const q = z
+      .object({ from: z.coerce.number().optional(), to: z.coerce.number().optional() })
+      .parse(req.query);
+
+    const to = q.to ?? Date.now();
+    const from = q.from ?? to - 30 * 86_400_000;
+    return db
+      .prepare(
+        'SELECT ts, ph, status, note FROM ph_checkins WHERE planter_id = ? AND ts BETWEEN ? AND ? ORDER BY ts',
+      )
+      .all(id, from, to) as { ts: number; ph: number; status: string; note: string | null }[];
   });
 
   app.get('/api/planters/:id/readings', async (req) => {
@@ -209,12 +272,15 @@ export async function routes(app: FastifyInstance): Promise<void> {
     const { id } = IdParam.parse(req.params);
     const q = z
       .object({
-        limit: z.coerce.number().min(1).max(500).default(50),
+        limit: z.coerce.number().min(1).max(2000).default(50),
         from: z.coerce.number().optional(),
+        to: z.coerce.number().optional(),
       })
       .parse(req.query);
 
-    return recentEvents(id, q.limit, q.from).map((e) => ({
+    const rows = recentEvents(id, q.limit, q.from);
+    const bounded = q.to === undefined ? rows : rows.filter((e) => e.ts <= q.to!);
+    return bounded.map((e) => ({
       ...e,
       payload: e.payload ? JSON.parse(e.payload) : null,
     }));

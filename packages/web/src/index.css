@@ -362,6 +362,22 @@ h1 {
 
 .field { display: flex; flex-direction: column; gap: 8px; }
 .field label { font-size: 15px; font-weight: 600; }
+.field textarea {
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.45;
+  resize: vertical;
+}
+.field textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+/* The character counter sits under the box and should not shout. */
+.field textarea + .field__hint { align-self: flex-end; font-variant-numeric: tabular-nums; }
+
 .field input,
 .field select {
   height: 52px;
@@ -417,6 +433,18 @@ h1 {
 .detail-head__row .chip { padding: 5px 14px 5px 12px; font-size: 16px; }
 .detail-head__row .chip__dot { width: 9px; height: 9px; }
 .chip--plain { padding: 5px 14px; }
+/* Same filled pill as Online and Real planter, but sitting on the right. */
+.chip--planted {
+  margin-left: auto;
+  border: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+.chip--planted:hover { filter: brightness(0.96); }
+.chip--planted:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .chip--link { text-decoration: none; }
 .chip--link:hover { filter: brightness(0.96); }
 
@@ -433,6 +461,51 @@ h1 {
 .banner--warning { background: var(--chip-amber-bg); color: #3b2704; }
 .banner--info { background: var(--chip-grey-bg); color: var(--chip-grey-text); }
 .banner--critical { background: var(--chip-red-bg); color: #3b1108; }
+
+/* Who the alert is for. "Planter" is a condition it reports and you cannot
+   clear by pressing anything; "You" is a record you can make, which clears it. */
+.banner__tag {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.banner__tag--system { background: rgba(0, 0, 0, 0.07); }
+.banner__text { flex-grow: 1; }
+.banner__chevron { flex-shrink: 0; opacity: 0.65; }
+
+/* Actionable alerts are links, so they must not inherit link chrome. */
+.banner--action {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.banner--action:hover .banner__text { text-decoration: underline; }
+.banner--action:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+.stack--alerts { gap: 10px; flex-grow: 0; }
+
+/* Button rows: records sit together, pump controls push apart. */
+/* The base row. Its absence is why button groups sat flush against each
+   other: the gap on the modifiers had no flex container to apply to. */
+.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.row--records { gap: 14px; }
+/* Pump controls size to their text rather than stretching across the card. */
+.row--spread { gap: 14px; }
+.row--spread .button { flex: 0 0 auto; }
+
+.detail-head__preset { font-weight: 400; color: var(--muted); }
+/* The planted-date chip turns into a date input in place. */
+.chip--date {
+  font: inherit;
+  font-size: 15px;
+  padding: 4px 10px;
+  border: 1.5px solid var(--ink);
+}
 
 .section { display: flex; flex-direction: column; gap: 16px; }
 .section__head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -518,7 +591,7 @@ h1 {
   padding: 0 22px;
   border: 0;
   border-radius: 0;
-  background: transparent;
+  background: #fff;
   color: var(--ink);
   font-weight: 600;
   font-size: 16px;
@@ -527,7 +600,30 @@ h1 {
 .segmented button + button { border-left: 1.5px solid var(--ink); }
 .segmented button[aria-pressed='true'] { background: var(--ink); color: #fff; }
 
-.history { gap: 14px; padding: 24px; }
+.history { gap: 14px; padding: 24px; background: #fff; }
+
+/* Each chart sits in its own positioned lane so a tooltip can be placed over
+   it in HTML. SVG has no text wrapping, which a free-text note needs. */
+.lane { position: relative; }
+.lane__tip {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgb(22 36 27 / 22%);
+}
+.lane__tip-head { font-weight: 700; white-space: nowrap; }
+.lane__tip-note { opacity: 0.85; }
 @container page (min-width: 900px) { .history { padding: 28px; } }
 .legend { display: flex; flex-wrap: wrap; gap: 24px; font-size: 16px; color: var(--muted); }
 .legend > span { display: inline-flex; align-items: center; gap: 8px; }
@@ -537,10 +633,104 @@ h1 {
 
 /* ── Timeline ───────────────────────────────────────────────── */
 
+/* Range picker: presets, with the custom dates appearing underneath. */
+.rangepicker { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.rangepicker__dates { display: flex; gap: 12px; flex-wrap: wrap; }
+.rangepicker__dates label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.rangepicker__dates input {
+  height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+}
+
+/* Filter tags and search sit on one line, wrapping on a phone. */
+.log-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.chips--filters { gap: 8px; }
+.chip--filter {
+  padding: 5px 14px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.chip--filter:hover { border-color: var(--ink); }
+.chip--filter-on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.chip--clear { border-style: dashed; color: var(--muted); }
+.chip--filter:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+.log-search {
+  flex: 1 1 220px;
+  max-width: 320px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+}
+.log-search:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; border-color: var(--ink); }
+
 .timeline { padding: 12px 24px; gap: 0; }
 @container page (min-width: 900px) { .timeline { padding: 12px 28px; } }
 .timeline__row { display: flex; align-items: center; gap: 16px; padding: 14px 0; font-size: 17px; }
 .timeline__row + .timeline__row { border-top: 1px solid var(--hairline); }
+/* Each row selects itself, ruling a line down every lane above. */
+.timeline__row--button {
+  width: 100%;
+  margin: 0;
+  /* All four, not three: the leftover UA border-top drew a grey rule across
+     the top of the log. The hairline between rows is added back below. */
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.timeline__main { display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0; }
+.timeline__text { flex-grow: 1; }
+/* The note a record carried. Hidden until the row is hovered or focused, so
+   the log stays scannable, but it animates rather than jumping. */
+.timeline__note {
+  max-height: 0;
+  overflow: hidden;
+  font-size: 15px;
+  color: var(--muted);
+  opacity: 0;
+  transition: max-height 140ms ease, opacity 140ms ease;
+}
+.timeline__row--button:hover .timeline__note,
+.timeline__row--button:focus-visible .timeline__note,
+.timeline__row--selected .timeline__note { max-height: 4em; opacity: 1; }
+/* Touch has no hover, so there the note simply stays visible. */
+@media (hover: none) {
+  .timeline__note { max-height: 4em; opacity: 1; }
+}
+.timeline__row--button:hover .timeline__text { text-decoration: underline; }
+.timeline__row--button:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+.timeline__row--selected { background: var(--chip-green-bg); }
+.timeline__row--selected .timeline__text { font-weight: 600; }
 .timeline__time { width: 150px; flex-shrink: 0; color: var(--muted); font-size: 16px; }
 .timeline__dot {
   width: 36px;
@@ -714,27 +904,34 @@ h1 {
   border: 0;
   background: var(--bg);
   color: var(--ink);
-  /* Phone: fills the screen, as drawn. */
-  width: 100%;
+  /* A centred card that is only as tall as what it holds.
+     fit-content, not auto: a modal dialog is fixed with inset 0 in the UA
+     sheet, and `height: auto` on a fixed box with both top and bottom set
+     stretches to fill the gap instead of shrinking to its content. */
+  width: min(460px, calc(100vw - 32px));
   max-width: none;
-  height: 100dvh;
-  max-height: none;
-  margin: 0;
+  height: fit-content;
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  border-radius: 16px;
+  overflow: auto;
 }
 .sheet::backdrop { background: rgb(22 36 27 / 40%); }
-.screen--sheet { min-height: 100%; max-width: 460px; }
+/* No min-height and no footer push: inside a sheet the content sets the size,
+   where on a full screen the foot is deliberately pinned to the bottom. */
+.screen--sheet { min-height: 0; max-width: 460px; }
+.screen--sheet .screen__foot { margin-top: 0; display: flex; flex-direction: column; gap: 16px; }
 
-@media (min-width: 900px) {
-  /* Desktop: a centred card over the dashboard. */
+/* Only a genuinely small screen gets the full-bleed treatment. */
+@media (max-width: 560px) {
   .sheet {
-    width: min(460px, calc(100vw - 48px));
-    height: auto;
-    max-height: calc(100dvh - 48px);
-    margin: auto;
-    border-radius: 16px;
-    overflow: auto;
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
   }
-  .screen--sheet { min-height: 0; }
+  .screen--sheet { min-height: 100%; }
 }
 
 /* ── Dev drawer (simulator controls) ────────────────────────── */

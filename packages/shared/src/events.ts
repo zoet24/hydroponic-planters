@@ -18,7 +18,7 @@ export interface TimelineItem extends PlanterEvent {
 }
 
 export type EventTone = 'green' | 'amber' | 'red' | 'grey';
-export type EventIcon = 'pump' | 'preset' | 'ph' | 'nutrients' | 'water' | 'plug' | 'dot';
+export type EventIcon = 'pump' | 'preset' | 'ph' | 'nutrients' | 'water' | 'plug' | 'note' | 'dot';
 
 /**
  * Fold "pump started" and "pump stopped" into one row.
@@ -83,9 +83,23 @@ export function describeEvent(e: TimelineItem): string {
         : 'Nutrients added';
     case 'added':
       return 'Planter added';
+    case 'note':
+      return typeof p.text === 'string' && p.text.trim() !== '' ? p.text : 'Note';
     default:
       return e.type.replace(/_/g, ' ');
   }
+}
+
+/**
+ * The free text a grower attached to a record, if any.
+ *
+ * A `note` event carries its text as the whole entry, so it has none to add —
+ * returning it twice would show the same sentence above itself.
+ */
+export function eventNote(e: { type: string; payload?: Record<string, unknown> | null }): string | null {
+  if (e.type === 'note') return null;
+  const note = e.payload?.note;
+  return typeof note === 'string' && note.trim() !== '' ? note : null;
 }
 
 export function eventTone(type: string): EventTone {
@@ -99,6 +113,8 @@ export function eventTone(type: string): EventTone {
     case 'online':
     case 'added':
       return 'green';
+    case 'note':
+      return 'grey';
     default:
       return 'grey';
   }
@@ -114,6 +130,8 @@ export function eventIcon(type: string): EventIcon {
       return 'ph';
     case 'nutrients_added':
       return 'nutrients';
+    case 'note':
+      return 'note';
     case 'low_water':
       return 'water';
     case 'online':

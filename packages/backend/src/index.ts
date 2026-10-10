@@ -1,5 +1,4 @@
 import Fastify from 'fastify';
-import { ZodError } from 'zod';
 import { routes } from './api';
 import { config } from './config';
 import { pruneOldReadings } from './db';
@@ -7,14 +6,6 @@ import { startMqtt } from './mqtt';
 import { hydrate, seedPresets } from './registry';
 
 const app = Fastify({ logger: false });
-
-app.setErrorHandler((err, _req, reply) => {
-  if (err instanceof ZodError) {
-    return reply.code(400).send({ error: 'invalid request', issues: err.issues });
-  }
-  console.error('[api]', err);
-  return reply.code(500).send({ error: 'internal error' });
-});
 
 async function main(): Promise<void> {
   seedPresets();

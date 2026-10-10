@@ -27,6 +27,8 @@ export interface PlanterView {
   presetId: string | null;
   preset: Preset | null;
   added: boolean;
+  /** When the grower says it was planted. Null until they set it. */
+  plantedAt: number | null;
   simulated: boolean;
   online: boolean;
   lastSeenAt: number | null;
@@ -53,6 +55,7 @@ interface PlanterRecord {
   online: boolean;
   lastSeenAt: number | null;
   addedAt: number | null;
+  plantedAt: number | null;
   desiredSetAt: number;
 }
 
@@ -97,6 +100,7 @@ export function getPlanter(id: string): PlanterRecord | undefined {
     online: false,
     lastSeenAt: (row.last_seen_at as number | null) ?? null,
     addedAt: (row.claimed_at as number | null) ?? null,
+    plantedAt: (row.planted_at as number | null) ?? null,
     desiredSetAt: 0,
   };
   fleet.set(id, record);
@@ -107,12 +111,13 @@ export const allPlanters = (): PlanterRecord[] => [...fleet.values()];
 const upsert = db.prepare(`
   -- claimed_at is the historical column name for what the app now calls
   -- "added". Kept as-is so an existing database needs no migration.
-  INSERT INTO planters (id, name, plant_type, preset_id, desired_json, reported_json, online, last_seen_at, claimed_at, created_at)
-  VALUES (@id, @name, @plantType, @presetId, @desired, @reported, @online, @lastSeenAt, @addedAt, @createdAt)
+  INSERT INTO planters (id, name, plant_type, preset_id, desired_json, reported_json, online, last_seen_at, claimed_at, planted_at, created_at)
+  VALUES (@id, @name, @plantType, @presetId, @desired, @reported, @online, @lastSeenAt, @addedAt, @plantedAt, @createdAt)
   ON CONFLICT(id) DO UPDATE SET
     name = @name, plant_type = @plantType, preset_id = @presetId,
     desired_json = @desired, reported_json = @reported,
-    online = @online, last_seen_at = @lastSeenAt, claimed_at = @addedAt
+    online = @online, last_seen_at = @lastSeenAt, claimed_at = @addedAt,
+    planted_at = @plantedAt
 `);
 
 export function persist(record: PlanterRecord): void {
@@ -126,6 +131,7 @@ export function persist(record: PlanterRecord): void {
     online: record.online ? 1 : 0,
     lastSeenAt: record.lastSeenAt,
     addedAt: record.addedAt,
+    plantedAt: record.plantedAt,
     createdAt: Date.now(),
   });
 }
@@ -152,6 +158,7 @@ export function reloadFromDb(): number {
     record.plantType = (row.plant_type as string | null) ?? null;
     record.presetId = (row.preset_id as string | null) ?? null;
     record.addedAt = (row.claimed_at as number | null) ?? null;
+    record.plantedAt = (row.planted_at as number | null) ?? null;
     record.desired = DesiredState.catch(DEFAULT_DESIRED).parse(safeJson(row.desired_json));
     record.desiredSetAt = Date.now();
   }
@@ -177,6 +184,7 @@ function hydrateRow(row: Record<string, unknown>): void {
     online: false, // proven by a retained status message, never assumed
     lastSeenAt: (row.last_seen_at as number | null) ?? null,
     addedAt: (row.claimed_at as number | null) ?? null,
+    plantedAt: (row.planted_at as number | null) ?? null,
     desiredSetAt: 0,
   });
 }
@@ -199,6 +207,7 @@ export function ensurePlanter(id: string): PlanterRecord {
     online: false,
     lastSeenAt: null,
     addedAt: null,
+    plantedAt: null,
     desiredSetAt: 0,
   };
   fleet.set(id, record);
@@ -229,6 +238,7 @@ export function toView(record: PlanterRecord, now = Date.now()): PlanterView {
     presetId: record.presetId,
     preset,
     added: record.addedAt !== null,
+    plantedAt: record.plantedAt,
     simulated: simulatedIds.has(record.id),
     online: record.online,
     lastSeenAt: record.lastSeenAt,

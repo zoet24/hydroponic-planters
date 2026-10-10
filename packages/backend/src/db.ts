@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS planters (
   online        INTEGER NOT NULL DEFAULT 0,
   last_seen_at  INTEGER,
   claimed_at    INTEGER,
+  planted_at    INTEGER,
   created_at    INTEGER NOT NULL
 );
 
@@ -70,6 +71,27 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_lookup ON events (planter_id, ts);
 `);
 
+/**
+ * Columns added after the first release.
+ *
+ * `CREATE TABLE IF NOT EXISTS` leaves an existing table alone, so a new column
+ * never reaches a database that already exists. Adding them here keeps that
+ * working without a migration framework: SQLite's ADD COLUMN is cheap, and
+ * checking table_info first makes it safe to run on every start.
+ */
+function addColumnIfMissing(table: string, column: string, definition: string): void {
+  const existing = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (existing.some((c) => c.name === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  console.log(`[db] added ${table}.${column}`);
+}
+
+addColumnIfMissing('planters', 'planted_at', 'INTEGER');
+// The note belongs with the reading, not only in the event payload: the chart
+// reads this table, and matching the two on an identical timestamp would be a
+// coupling nobody could see.
+addColumnIfMissing('ph_checkins', 'note', 'TEXT');
+
 export type EventType =
   | 'pump_run'
   | 'preset_applied'
@@ -78,7 +100,8 @@ export type EventType =
   | 'online'
   | 'ph_checkin'
   | 'nutrients_added'
-  | 'added';
+  | 'added'
+  | 'note';
 
 const insertEvent = db.prepare(
   'INSERT INTO events (planter_id, ts, type, payload) VALUES (?, ?, ?, ?)',

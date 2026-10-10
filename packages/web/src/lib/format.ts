@@ -135,3 +135,18 @@ function relativeDays(ts: number, now: number): string {
   if (days === 1) return 'yesterday';
   return `${days} days ago`;
 }
+
+/**
+ * How long the plant has been in. Days up to a fortnight, then weeks, because
+ * "Growing for 43 days" is harder to picture than "Growing for 6 weeks".
+ */
+export function growingFor(plantedAt: number | null, now = Date.now()): string | null {
+  if (plantedAt === null) return null;
+  const days = Math.floor((now - plantedAt) / 86_400_000);
+  if (days < 0) return 'Planted in the future';
+  if (days === 0) return 'Planted today';
+  if (days === 1) return 'Growing for 1 day';
+  if (days < 14) return `Growing for ${days} days`;
+  const weeks = Math.round(days / 7);
+  return `Growing for ${weeks} weeks`;
+}

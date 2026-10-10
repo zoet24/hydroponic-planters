@@ -46,6 +46,12 @@ export function EventIcon({ name }: { name: IconName }) {
           <path d="M9 3v6M15 3v6M6 9h12v3a6 6 0 01-12 0zM12 18v3" />
         </svg>
       );
+    case 'note':
+      return (
+        <svg {...common} strokeWidth="2">
+          <path d="M5 4h11l3 3v13H5zM8 10h8M8 14h6" />
+        </svg>
+      );
     default:
       return (
         <svg {...common} strokeWidth="2.4">

@@ -1,33 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useParams } from 'react-router-dom';
-import { LineChart, PumpStrip } from '../components/Chart';
+import { EventStrip, LineChart, type Mark } from '../components/Chart';
 import { Chip } from '../components/Chip';
 import { EventIcon } from '../components/EventIcon';
 import { AI_PRESETS_ENABLED } from '../features';
-import { configRows, dueLabel } from '../lib/detail';
+import { configRows } from '../lib/detail';
 import {
   collapsePumpRuns,
   describeEvent,
   eventIcon,
+  eventNote,
   eventTime,
   eventTone,
   type PlanterEvent,
 } from '@planter/shared';
-import { nutrientChip, nutrientSummary, phChip, relativeTime, waterLabel } from '../lib/format';
-import { trimZero, type Point } from '@planter/shared';
-import { api, post, usePlanter } from '../PlantersContext';
+import { growingFor, nutrientSummary, relativeTime, waterLabel } from '../lib/format';
+import { sortAlerts, trimZero, type Point } from '@planter/shared';
+import { api, patch, post, usePlanter } from '../PlantersContext';
 import type { PlanterView } from '../types';
-
-const RANGES = [
-  { label: '1 h', ms: 3_600_000 },
-  { label: '6 h', ms: 21_600_000 },
-  { label: '24 h', ms: 86_400_000 },
-] as const;
 
 export function PlanterDetail() {
   const { id } = useParams();
   const planter = usePlanter(id);
-  const [rangeMs, setRangeMs] = useState<number>(RANGES[2].ms);
 
   if (!planter) {
     return (
@@ -41,16 +35,18 @@ export function PlanterDetail() {
   return (
     <div className="page page--detail">
       <DetailHeader planter={planter} />
+      <Actions planter={planter} />
       <Live planter={planter} />
       <Config planter={planter} />
-      <History planter={planter} rangeMs={rangeMs} onRange={setRangeMs} />
-      <Timeline planterId={planter.id} />
+      <TimelineSection planter={planter} />
       <Outlet />
     </div>
   );
 }
 
 function DetailHeader({ planter: p }: { planter: PlanterView }) {
+  const grown = growingFor(p.plantedAt);
+
   return (
     <header className="detail-head">
       <Link to="/" className="backlink">
@@ -61,43 +57,112 @@ function DetailHeader({ planter: p }: { planter: PlanterView }) {
       </Link>
 
       <div className="detail-head__row">
-        <h1>{p.name}</h1>
+        <h1>
+          {p.name}
+          {p.preset && <span className="detail-head__preset"> · {p.preset.name}</span>}
+        </h1>
         <Chip tone={p.online ? 'green' : 'red'}>
           {p.online ? 'Online' : `Offline, last seen ${relativeTime(p.lastSeenAt)}`}
         </Chip>
-        {p.preset && <span className="chip chip--grey chip--plain">{p.preset.name} preset</span>}
-        {p.preset && (
-          <Link
-            to={`/planters/${p.id}/ph`}
-            className={`chip chip--${phChip(p)?.tone ?? 'grey'} chip--link`}
-          >
-            <span className="chip__dot" aria-hidden="true" />
-            pH check due {dueLabel(p.phCheckDueAt)}
-          </Link>
-        )}
-        {nutrientChip(p) && (
-          <span className={`chip chip--${nutrientChip(p)!.tone}`}>
-            <span className="chip__dot" aria-hidden="true" />
-            {nutrientChip(p)!.label}
-          </span>
-        )}
+        <Chip tone="grey">{p.simulated ? 'Simulated' : 'Real planter'}</Chip>
+        <PlantedFor planter={p} grown={grown} />
       </div>
+    </header>
+  );
+}
 
-      {p.alerts.length === 0 ? (
+/**
+ * The growing clock, and the only place to set it.
+ *
+ * Inline rather than a modal: it is one date, and a planter added before the
+ * field existed would otherwise have no way to acquire one.
+ */
+function PlantedFor({ planter: p, grown }: { planter: PlanterView; grown: string | null }) {
+  const [editing, setEditing] = useState(false);
+
+  const save = async (value: string) => {
+    setEditing(false);
+    if (!value) return;
+    // Midday, not midnight: a date-only value parsed as UTC can land on the
+    // previous day once it is rendered in a western timezone.
+    const at = new Date(`${value}T12:00:00`).getTime();
+    try {
+      await patch(`/api/planters/${p.id}`, { plantedAt: at });
+    } catch {
+      /* the chip simply keeps its old value */
+    }
+  };
+
+  if (editing) {
+    return (
+      <input
+        type="date"
+        className="chip chip--grey chip--planted chip--date"
+        autoFocus
+        defaultValue={p.plantedAt ? new Date(p.plantedAt).toISOString().slice(0, 10) : ''}
+        max={new Date().toISOString().slice(0, 10)}
+        onBlur={(e) => void save(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void save((e.target as HTMLInputElement).value);
+          if (e.key === 'Escape') setEditing(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <button type="button" className="chip chip--grey chip--planted" onClick={() => setEditing(true)}>
+      {grown ?? 'Set planter start date'}
+    </button>
+  );
+}
+
+/**
+ * Everything wanting attention, most urgent first.
+ *
+ * Two kinds, told apart visually: conditions the system reports and the user
+ * cannot clear by pressing anything (offline, low water, cold water), and
+ * records the user can make, which both clear the alert and write to the
+ * timeline. Only the second kind is clickable.
+ */
+function Actions({ planter: p }: { planter: PlanterView }) {
+  const alerts = sortAlerts(p.alerts);
+
+  return (
+    <section className="section">
+      <h2>Actions</h2>
+      {alerts.length === 0 ? (
         <div className="banner banner--ok">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M5 12.5l4.5 4.5L19 7.5" />
           </svg>
-          No active alerts
+          Nothing needs doing
         </div>
       ) : (
-        p.alerts.map((a) => (
-          <div key={a.kind} className={`banner banner--${a.severity}`} role="status">
-            {a.message}
-          </div>
-        ))
+        <div className="stack stack--alerts">
+          {alerts.map((a) =>
+            a.action ? (
+              <Link
+                key={a.kind}
+                to={`/planters/${p.id}/${a.action === 'ph_check' ? 'ph' : 'nutrients'}`}
+                className={`banner banner--${a.severity} banner--action`}
+              >
+                <span className="banner__tag">You</span>
+                <span className="banner__text">{a.message}</span>
+                <svg className="banner__chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            ) : (
+              <div key={a.kind} className={`banner banner--${a.severity}`} role="status">
+                <span className="banner__tag banner__tag--system">Planter</span>
+                <span className="banner__text">{a.message}</span>
+              </div>
+            ),
+          )}
+        </div>
       )}
-    </header>
+    </section>
   );
 }
 
@@ -133,6 +198,14 @@ function Live({ planter: p }: { planter: PlanterView }) {
           }
         />
         <Stat label="Pump" value={pumpState(p)} note={pumpNote(p)} />
+      </div>
+
+      {/* Recording something is a different act from changing the planter's
+          configuration, so these sit with the readings rather than in Config. */}
+      <div className="row row--records">
+        <Link to={`/planters/${p.id}/nutrients`} className="button button--primary">Record nutrients</Link>
+        <Link to={`/planters/${p.id}/ph`} className="button button--primary">Record pH</Link>
+        <Link to={`/planters/${p.id}/note`} className="button button--primary">Add note</Link>
       </div>
     </section>
   );
@@ -206,7 +279,7 @@ function Config({ planter: p }: { planter: PlanterView }) {
   return (
     <section className="section">
       <div className="section__head">
-        <h2>Config</h2>
+        <h2>Config{p.preset ? `: ${p.preset.name} preset` : ''}</h2>
         <div className="row">
           <Link
             to={`/planters/${p.id}/preset`}
@@ -277,7 +350,7 @@ function Config({ planter: p }: { planter: PlanterView }) {
           </div>
         </div>
 
-        <div className="row">
+        <div className="row row--spread">
           {/* Stop replaces Run while the pump is actually running, so the
               primary control is always the one that does something. */}
           {p.reported.pumpOn ? (
@@ -296,10 +369,6 @@ function Config({ planter: p }: { planter: PlanterView }) {
             onClick={() => send({ pumpEnable: !p.desired.pumpEnable })}>
             {p.desired.pumpEnable ? 'Pause schedule' : 'Resume schedule'}
           </button>
-          <button type="button" className="button" disabled={busy}
-            onClick={() => run(() => post(`/api/planters/${p.id}/nutrients`))}>
-            I added nutrients
-          </button>
         </div>
 
         {error && <p className="formerror" role="alert">{error}</p>}
@@ -308,64 +377,129 @@ function Config({ planter: p }: { planter: PlanterView }) {
   );
 }
 
-function History({
-  planter: p,
-  rangeMs,
-  onRange,
-}: {
-  planter: PlanterView;
-  rangeMs: number;
-  onRange: (ms: number) => void;
-}) {
-  const [temp, setTemp] = useState<Point[]>([]);
-  const [runs, setRuns] = useState<number[]>([]);
-  const [to, setTo] = useState(() => Date.now());
-  const [loading, setLoading] = useState(true);
+/** Preset windows, plus a custom range for anything else. */
+const RANGE_PRESETS = [
+  { key: '24h', label: '24 h', ms: 86_400_000 },
+  { key: '7d', label: '7 days', ms: 7 * 86_400_000 },
+  { key: '30d', label: '30 days', ms: 30 * 86_400_000 },
+  { key: 'all', label: 'All', ms: 365 * 86_400_000 },
+] as const;
 
-  // Refetch on range change, and again whenever live state moves on.
-  useEffect(() => {
+/**
+ * Which log entries each filter tag covers.
+ *
+ * Grouped by what the grower did or what happened, not by the event type name:
+ * "System" covering three connection events is more useful than three tags
+ * nobody wants to toggle separately.
+ */
+const LOG_FILTERS = [
+  { key: 'pump', label: 'Pump', types: ['pump_run'] },
+  { key: 'ph', label: 'pH', types: ['ph_checkin'] },
+  { key: 'nutrients', label: 'Nutrients', types: ['nutrients_added'] },
+  { key: 'notes', label: 'Notes', types: ['note'] },
+  { key: 'alerts', label: 'Alerts', types: ['low_water'] },
+  { key: 'system', label: 'System', types: ['online', 'offline', 'added', 'preset_applied'] },
+] as const;
+
+interface PhPoint {
+  ts: number;
+  ph: number;
+  status: string;
+  note: string | null;
+}
+
+/**
+ * History and the log, together.
+ *
+ * They were two sections showing the same events twice over. Combined, every
+ * measure gets its own lane on one shared time axis, and selecting a log entry
+ * rules a line down all of them — which is the whole reason to want pH and
+ * feeding on the same screen as the temperature.
+ */
+function TimelineSection({ planter: p }: { planter: PlanterView }) {
+  const [rangeKey, setRangeKey] = useState<string>('24h');
+  const [custom, setCustom] = useState<{ from: string; to: string } | null>(null);
+  const [temp, setTemp] = useState<Point[]>([]);
+  const [ph, setPh] = useState<PhPoint[]>([]);
+  const [events, setEvents] = useState<PlanterEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<PlanterEvent | null>(null);
+  const [active, setActive] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
+  const [window, setWindow] = useState(() => {
     const now = Date.now();
-    const from = now - rangeMs;
-    setTo(now);
+    return { from: now - 86_400_000, to: now };
+  });
+
+  // Recompute the window whenever the range choice changes, and refresh it as
+  // live state moves on so a 24h view keeps tracking "now".
+  useEffect(() => {
+    if (custom) {
+      const from = new Date(`${custom.from}T00:00:00`).getTime();
+      const to = new Date(`${custom.to}T23:59:59`).getTime();
+      if (!Number.isNaN(from) && !Number.isNaN(to) && from < to) setWindow({ from, to });
+      return;
+    }
+    const preset = RANGE_PRESETS.find((r) => r.key === rangeKey) ?? RANGE_PRESETS[0];
+    const now = Date.now();
+    setWindow({ from: now - preset.ms, to: now });
+  }, [rangeKey, custom, p.reported.pumpOn]);
+
+  useEffect(() => {
+    const { from, to } = window;
     setLoading(true);
 
-    const readings = (metric: string) =>
-      api<Point[]>(`/api/planters/${p.id}/readings?metric=${metric}&from=${from}&to=${now}`);
+    void Promise.allSettled([
+      api<Point[]>(`/api/planters/${p.id}/readings?metric=water_temp_c&from=${from}&to=${to}`),
+      api<PhPoint[]>(`/api/planters/${p.id}/ph-history?from=${from}&to=${to}`),
+      api<PlanterEvent[]>(`/api/planters/${p.id}/events?limit=2000&from=${from}&to=${to}`),
+    ]).then(([t, h, e]) => {
+      setTemp(t.status === 'fulfilled' ? t.value : []);
+      setPh(h.status === 'fulfilled' ? h.value : []);
+      setEvents(e.status === 'fulfilled' ? e.value : []);
+      setLoading(false);
+    });
+  }, [p.id, window.from, window.to]);
 
-    void readings('water_temp_c')
-      .then(setTemp)
-      .catch(() => setTemp([]))
-      .finally(() => setLoading(false));
-    void api<PlanterEvent[]>(`/api/planters/${p.id}/events?limit=500&from=${from}`)
-      .then((events) =>
-        setRuns(events.filter((e) => e.type === 'pump_run' && e.payload?.on === true).map((e) => e.ts)),
-      )
-      .catch(() => setRuns([]));
-  }, [p.id, rangeMs, p.reported.pumpOn]);
+  const { from, to } = window;
+  const marksOf = (type: string, text: (e: PlanterEvent) => string | null): Mark[] =>
+    events.filter((e) => e.type === type).map((e) => ({ ts: e.ts, note: text(e) }));
 
-  const from = to - rangeMs;
+  const runs: Mark[] = events
+    .filter((e) => e.type === 'pump_run' && e.payload?.on === true)
+    .map((e) => ({ ts: e.ts, note: `at ${String(e.payload?.speedPercent ?? '?')}% speed` }));
+  const feeds = marksOf('nutrients_added', eventNote);
+  const notes = marksOf('note', (e) => (typeof e.payload?.text === 'string' ? e.payload.text : null));
+
+  const allowed = active.length === 0 ? null : new Set(LOG_FILTERS.filter((f) => active.includes(f.key)).flatMap((f) => f.types as readonly string[]));
+  const needle = query.trim().toLowerCase();
+  const log = collapsePumpRuns(events)
+    .filter((e) => (allowed === null ? true : allowed.has(e.type)))
+    .filter((e) => (needle === '' ? true : describeEvent(e).toLowerCase().includes(needle)))
+    .slice(0, 200);
+
+  const toggle = (key: string) =>
+    setActive((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
 
   return (
     <section className="section">
       <div className="section__head">
-        <h2>History</h2>
-        <div className="segmented" role="group" aria-label="Time range">
-          {RANGES.map((r) => (
-            <button
-              key={r.label}
-              type="button"
-              aria-pressed={rangeMs === r.ms}
-              onClick={() => onRange(r.ms)}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+        <h2>Timeline</h2>
+        <RangePicker
+          rangeKey={rangeKey}
+          custom={custom}
+          onPreset={(k) => {
+            setCustom(null);
+            setRangeKey(k);
+          }}
+          onCustom={setCustom}
+        />
       </div>
 
       <div className="card history">
         <div className="legend">
           <span><span className="legend__line" style={{ background: 'var(--green)' }} />Water temperature</span>
+          <span><span className="legend__line" style={{ background: 'var(--violet, #6b4fbb)' }} />pH</span>
           <span><span className="legend__bar" />Pump run</span>
         </div>
 
@@ -376,46 +510,143 @@ function History({
           colour="var(--green)"
           format={(v) => `${trimZero(v)} °C`}
           loading={loading}
-          title={`Water temperature over the last ${rangeMs / 3_600_000} hours`}
+          selectedTs={selected?.ts ?? null}
+          band={p.preset ? { min: p.preset.waterTempC.min, max: p.preset.waterTempC.max } : null}
+          title="Water temperature"
         />
-        <PumpStrip runs={runs} from={from} to={to} />
+
+        <LineChart
+          points={ph.map((r) => ({ ts: r.ts, value: r.ph, note: r.note }))}
+          from={from}
+          to={to}
+          colour="var(--violet, #6b4fbb)"
+          format={(v) => `pH ${v.toFixed(1)}`}
+          loading={loading}
+          dots
+          selectedTs={selected?.ts ?? null}
+          band={p.preset ? { min: p.preset.ph.targetMin, max: p.preset.ph.targetMax } : null}
+          title="pH check-ins"
+        />
+
+        <EventStrip label="Pump" items={runs} from={from} to={to} selectedTs={selected?.ts ?? null} />
+        <EventStrip label="Nutrients" items={feeds} from={from} to={to} colour="var(--chip-amber-text, #8a5a00)" selectedTs={selected?.ts ?? null} />
+        <EventStrip label="Notes" items={notes} from={from} to={to} colour="var(--muted)" axis selectedTs={selected?.ts ?? null} />
+      </div>
+
+      <div className="log-controls">
+        <div className="chips chips--filters" role="group" aria-label="Filter the log">
+          {LOG_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              aria-pressed={active.includes(f.key)}
+              className={`chip chip--filter${active.includes(f.key) ? ' chip--filter-on' : ''}`}
+              onClick={() => toggle(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+          {active.length > 0 && (
+            <button type="button" className="chip chip--filter chip--clear" onClick={() => setActive([])}>
+              Clear
+            </button>
+          )}
+        </div>
+        <input
+          type="search"
+          className="log-search"
+          placeholder="Search the log"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search the log"
+        />
+      </div>
+
+      <div className="card timeline">
+        {log.length === 0 ? (
+          <p className="stat__note">
+            {events.length === 0 ? 'Nothing has happened yet.' : 'Nothing matches those filters.'}
+          </p>
+        ) : (
+          log.map((e) => (
+            <button
+              key={e.id}
+              type="button"
+              className={`timeline__row timeline__row--button${selected?.id === e.id ? ' timeline__row--selected' : ''}`}
+              aria-pressed={selected?.id === e.id}
+              onClick={() => setSelected((cur) => (cur?.id === e.id ? null : e))}
+            >
+              <span className={`timeline__dot timeline__dot--${eventTone(e.type)}`}>
+                <EventIcon name={eventIcon(e.type)} />
+              </span>
+              <span className="timeline__time">{eventTime(e.ts)}</span>
+              <span className="timeline__main">
+                <span className="timeline__text">{describeEvent(e)}</span>
+                {eventNote(e) && <span className="timeline__note">{eventNote(e)}</span>}
+              </span>
+            </button>
+          ))
+        )}
       </div>
     </section>
   );
 }
 
-function Timeline({ planterId }: { planterId: string }) {
-  const [events, setEvents] = useState<PlanterEvent[]>([]);
-
-  useEffect(() => {
-    const load = () =>
-      // Ask for more than we show: start/stop pairs collapse into single rows.
-      api<PlanterEvent[]>(`/api/planters/${planterId}/events?limit=80`)
-        .then((list) => setEvents(collapsePumpRuns(list).slice(0, 40)))
-        .catch(() => setEvents([]));
-    void load();
-    const timer = setInterval(load, 15_000);
-    return () => clearInterval(timer);
-  }, [planterId]);
+function RangePicker({
+  rangeKey,
+  custom,
+  onPreset,
+  onCustom,
+}: {
+  rangeKey: string;
+  custom: { from: string; to: string } | null;
+  onPreset: (key: string) => void;
+  onCustom: (range: { from: string; to: string } | null) => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const draft = custom ?? { from: today, to: today };
 
   return (
-    <section className="section">
-      <h2>Timeline</h2>
-      <div className="card timeline">
-        {events.length === 0 ? (
-          <p className="stat__note">Nothing has happened yet.</p>
-        ) : (
-          events.map((e) => (
-            <div key={e.id} className="timeline__row">
-              <span className={`timeline__dot timeline__dot--${eventTone(e.type)}`}>
-                <EventIcon name={eventIcon(e.type)} />
-              </span>
-              <span className="timeline__time">{eventTime(e.ts)}</span>
-              <span>{describeEvent(e)}</span>
-            </div>
-          ))
-        )}
+    <div className="rangepicker">
+      <div className="segmented" role="group" aria-label="Time range">
+        {RANGE_PRESETS.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            aria-pressed={custom === null && rangeKey === r.key}
+            onClick={() => onPreset(r.key)}
+          >
+            {r.label}
+          </button>
+        ))}
+        <button type="button" aria-pressed={custom !== null} onClick={() => onCustom(custom ? null : draft)}>
+          Custom
+        </button>
       </div>
-    </section>
+
+      {custom && (
+        <div className="rangepicker__dates">
+          <label>
+            From
+            <input
+              type="date"
+              value={custom.from}
+              max={custom.to}
+              onChange={(e) => onCustom({ ...custom, from: e.target.value })}
+            />
+          </label>
+          <label>
+            To
+            <input
+              type="date"
+              value={custom.to}
+              min={custom.from}
+              max={today}
+              onChange={(e) => onCustom({ ...custom, to: e.target.value })}
+            />
+          </label>
+        </div>
+      )}
+    </div>
   );
 }

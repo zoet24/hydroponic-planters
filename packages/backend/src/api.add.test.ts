@@ -200,6 +200,84 @@ describe('pump controls', () => {
   });
 });
 
+describe('grower records', () => {
+  const online = () => {
+    const record = ensurePlanter(DEVICE);
+    record.online = true;
+    return record;
+  };
+
+  const events = async () =>
+    (await app.inject({ method: 'GET', url: `/api/planters/${DEVICE}/events?limit=50` })).json();
+
+  it('records a free-text note on the timeline', async () => {
+    online();
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/planters/${DEVICE}/notes`,
+      payload: { text: '  second set of leaves showing  ' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const note = (await events()).find((e: { type: string }) => e.type === 'note');
+    expect(note).toBeDefined();
+    // Trimmed, so stray whitespace never reaches the timeline.
+    expect(note.payload.text).toBe('second set of leaves showing');
+  });
+
+  it('rejects an empty note rather than writing a blank row', async () => {
+    online();
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/planters/${DEVICE}/notes`,
+      payload: { text: '' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('keeps an optional note against a nutrient record', async () => {
+    online();
+    await app.inject({
+      method: 'POST',
+      url: `/api/planters/${DEVICE}/nutrients`,
+      payload: { note: 'half strength, it looked scorched' },
+    });
+    const ev = (await events()).find((e: { type: string }) => e.type === 'nutrients_added');
+    expect(ev.payload.note).toBe('half strength, it looked scorched');
+  });
+
+  it('still accepts a nutrient record with no note at all', async () => {
+    online();
+    const res = await app.inject({ method: 'POST', url: `/api/planters/${DEVICE}/nutrients` });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('serves pH check-ins as a plottable series', async () => {
+    const record = online();
+    record.presetId = 'basil';
+
+    await app.inject({ method: 'POST', url: `/api/planters/${DEVICE}/ph`, payload: { ph: 6.1 } });
+    const res = await app.inject({ method: 'GET', url: `/api/planters/${DEVICE}/ph-history` });
+
+    expect(res.statusCode).toBe(200);
+    const series = res.json();
+    expect(series.length).toBeGreaterThan(0);
+    expect(series.at(-1)).toMatchObject({ ph: 6.1 });
+    expect(typeof series.at(-1).ts).toBe('number');
+  });
+
+  it('stores a planted date so the header can age the plant', async () => {
+    const when = Date.UTC(2026, 8, 12);
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/planters/${DEVICE}`,
+      payload: { plantedAt: when },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().plantedAt).toBe(when);
+  });
+});
+
 describe('removing a planter from the dashboard', () => {
   it('takes it off but keeps its name and preset', async () => {
     await app.inject({

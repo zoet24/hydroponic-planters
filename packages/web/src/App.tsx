@@ -3,7 +3,9 @@ import { DevDrawer, DevDrawerProvider } from './components/DevDrawer';
 import { usePresenterMode } from './presenter';
 import { PlantersProvider } from './PlantersContext';
 import { AddPlanter } from './routes/AddPlanter';
+import { AddNote } from './routes/AddNote';
 import { Home } from './routes/Home';
+import { RecordNutrients } from './routes/RecordNutrients';
 import { PlanterDetail } from './routes/PlanterDetail';
 import { PhCheck } from './routes/PhCheck';
 import { Presets } from './routes/Presets';
@@ -34,6 +36,8 @@ function Shell() {
             calls for a modal on desktop and a full screen on the phone. */}
         <Route path="/planters/:id" element={<PlanterDetail />}>
           <Route path="ph" element={<PhCheck />} />
+          <Route path="nutrients" element={<RecordNutrients />} />
+          <Route path="note" element={<AddNote />} />
         </Route>
         <Route path="/planters/:id/preset" element={<Presets />} />
         <Route path="*" element={<Home />} />

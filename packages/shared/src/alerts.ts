@@ -22,11 +22,30 @@ export type AlertKind =
 /** critical: the plant is at risk now. warning: act soon. info: a reminder. */
 export type AlertSeverity = 'critical' | 'warning' | 'info';
 
+/**
+ * What the user can do about an alert, if anything.
+ *
+ * `null` means the alert reports a condition of the system that no button can
+ * clear -- the planter is offline, the reservoir is empty, the water is cold.
+ * Those resolve when the world changes, not when the user acts. The rest name
+ * the record the user can make, which both clears the alert and writes to the
+ * timeline. The UI uses this to tell the two apart.
+ */
+export type AlertAction = 'ph_check' | 'nutrients';
+
 export interface Alert {
   kind: AlertKind;
   severity: AlertSeverity;
   message: string;
+  /** Null for conditions the user cannot action directly. */
+  action: AlertAction | null;
 }
+
+/** Most urgent first, so the UI never has to decide the order itself. */
+const SEVERITY_ORDER: Record<AlertSeverity, number> = { critical: 0, warning: 1, info: 2 };
+
+export const sortAlerts = (alerts: Alert[]): Alert[] =>
+  [...alerts].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 
 export interface AlertInput {
   online: boolean;
@@ -46,6 +65,7 @@ export function evaluateAlerts(input: AlertInput): Alert[] {
   if (!online) {
     alerts.push({
       kind: 'offline',
+      action: null,
       severity: 'critical',
       message: 'This planter is offline. Check power and Wi-Fi.',
     });
@@ -56,6 +76,7 @@ export function evaluateAlerts(input: AlertInput): Alert[] {
   if (reported.waterOk === false) {
     alerts.push({
       kind: 'low_water',
+      action: null,
       severity: 'critical',
       message: 'Water is low. Top up the reservoir — the pump will not run until you do.',
     });
@@ -64,6 +85,7 @@ export function evaluateAlerts(input: AlertInput): Alert[] {
   if (reported.pumpBlocked === true && reported.waterOk !== false) {
     alerts.push({
       kind: 'pump_blocked',
+      action: null,
       severity: 'warning',
       message: 'The pump is switched off at the device. Turn it back on to resume watering.',
     });
@@ -78,6 +100,7 @@ export function evaluateAlerts(input: AlertInput): Alert[] {
       const direction = temp < min ? 'warmer' : 'cooler';
       alerts.push({
         kind: 'water_temp_out_of_range',
+        action: null,
         severity: 'warning',
         message:
           `Water is ${temp.toFixed(1)} °C, outside the ${min}–${max} °C range for ` +
@@ -91,6 +114,7 @@ export function evaluateAlerts(input: AlertInput): Alert[] {
   if (ph !== 'ok') {
     alerts.push({
       kind: 'ph_check_due',
+      action: 'ph_check',
       severity: ph === 'soon' ? 'info' : 'warning',
       message:
         ph === 'soon'
@@ -104,6 +128,7 @@ export function evaluateAlerts(input: AlertInput): Alert[] {
     const strength = `${preset.nutrients.strengthMultiplier}× the label strength`;
     alerts.push({
       kind: 'nutrients_due',
+      action: 'nutrients',
       severity: nutrients === 'soon' ? 'info' : 'warning',
       message:
         `Nutrients are ${nutrients === 'soon' ? 'due soon' : nutrients === 'overdue' ? 'overdue' : 'due'} — ` +

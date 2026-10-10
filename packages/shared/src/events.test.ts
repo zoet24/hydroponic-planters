@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  collapsePumpRuns,
-  describeEvent,
-  eventTime,
-  eventTone,
-  type PlanterEvent,
-} from './events';
+import { collapsePumpRuns, describeEvent, eventNote, eventTime, eventTone, type PlanterEvent } from './events';
 
 let nextId = 1;
 const ev = (type: string, ts: number, payload: Record<string, unknown> | null = null): PlanterEvent => ({
@@ -113,5 +107,31 @@ describe('eventTime', () => {
 
   it('treats just after midnight as today', () => {
     expect(eventTime(new Date(2026, 8, 24, 0, 5).getTime(), now)).toMatch(/^Today/);
+  });
+});
+
+describe('eventNote', () => {
+  it('returns the note a pH check-in carried', () => {
+    expect(eventNote({ type: 'ph_checkin', payload: { ph: 6.1, note: 'pen recalibrated' } }))
+      .toBe('pen recalibrated');
+  });
+
+  it('returns the note a nutrient record carried', () => {
+    expect(eventNote({ type: 'nutrients_added', payload: { note: 'half strength' } }))
+      .toBe('half strength');
+  });
+
+  it('is null when nothing was written', () => {
+    expect(eventNote({ type: 'nutrients_added', payload: {} })).toBeNull();
+    expect(eventNote({ type: 'pump_run', payload: { on: true } })).toBeNull();
+  });
+
+  it('ignores whitespace-only notes', () => {
+    expect(eventNote({ type: 'ph_checkin', payload: { note: '   ' } })).toBeNull();
+  });
+
+  // The note event's text is already the entry itself.
+  it('adds nothing to a note event, which would otherwise repeat itself', () => {
+    expect(eventNote({ type: 'note', payload: { text: 'looking perky' } })).toBeNull();
   });
 });

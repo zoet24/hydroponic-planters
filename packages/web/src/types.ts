@@ -1,3 +1,5 @@
+import type { Alert } from '@planter/shared';
+
 /** Mirrors the backend PlanterView in packages/backend/src/registry.ts. */
 
 export interface PlanterView {
@@ -7,6 +9,8 @@ export interface PlanterView {
   presetId: string | null;
   preset: Preset | null;
   added: boolean;
+  /** When the grower says it went in. Null until they set it. */
+  plantedAt: number | null;
   simulated: boolean;
   online: boolean;
   lastSeenAt: number | null;
@@ -33,7 +37,7 @@ export interface PlanterView {
   syncing: boolean;
   syncStale: boolean;
   flowEstimateLpm: number;
-  alerts: { kind: string; severity: 'critical' | 'warning' | 'info'; message: string }[];
+  alerts: Alert[];
   phCheckDueAt: number | null;
   nutrientsDueAt: number | null;
   nutrientsStatus: 'ok' | 'due' | 'overdue' | null;

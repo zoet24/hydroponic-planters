@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { niceDomain, phScaleX, PLOT, stepPh, ticksFor, trimZero, xAt, yAt } from './chart';
+import { PLOT, axisLabel, niceDomain, phScaleX, stepPh, ticksFor, trimZero, xAt, yAt } from './chart';
 
 describe('niceDomain', () => {
   it('fits a real temperature spread onto the axis the design draws', () => {
@@ -93,5 +93,25 @@ describe('stepPh', () => {
   it('stays inside what the engine will accept, so a stepper cannot make an invalid reading', () => {
     expect(stepPh(3, -0.1)).toBe(3);
     expect(stepPh(9, 0.1)).toBe(9);
+  });
+});
+
+describe('axisLabel', () => {
+  const at = Date.UTC(2026, 9, 10, 14, 30);
+
+  it('shows a clock face for an hour on screen', () => {
+    expect(axisLabel(at, 3_600_000)).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it('still shows times across two days, where they are unambiguous', () => {
+    expect(axisLabel(at, 2 * 86_400_000)).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it('switches to dates once times would repeat', () => {
+    expect(axisLabel(at, 7 * 86_400_000)).toMatch(/Oct/);
+  });
+
+  it('drops to months across a year', () => {
+    expect(axisLabel(at, 400 * 86_400_000)).toMatch(/Oct 26/);
   });
 });
