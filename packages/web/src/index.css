@@ -103,6 +103,54 @@ h1 {
 
 /* ── Cards ──────────────────────────────────────────────────── */
 
+/* Wraps a planter card so its edit and remove buttons can sit over the corner
+   without being inside the anchor. Flex so the card still fills the cell. */
+.card-wrap { position: relative; display: flex; }
+.card-wrap > .card { flex: 1 1 auto; }
+
+.card-actions {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  display: flex;
+  gap: 6px;
+}
+.card-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.card-action:hover { border-color: var(--ink); color: var(--ink); }
+.card-action--danger:hover { border-color: var(--chip-red-text); color: var(--chip-red-text); }
+.card-action:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+/* A disabled button looked identical to an enabled one, so "Save changes"
+   with nothing changed read as unresponsive rather than as not-yet-applicable. */
+.button:disabled,
+.button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* The confirm button on a destructive sheet. */
+.button--danger {
+  background: var(--chip-red-text);
+  border-color: var(--chip-red-text);
+  color: #fff;
+}
+.button--danger:hover { filter: brightness(1.08); }
+
 .planter-grid {
   display: grid;
   gap: 24px;

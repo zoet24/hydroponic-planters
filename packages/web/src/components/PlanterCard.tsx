@@ -15,14 +15,41 @@ import type { PlanterView } from '../types';
 export function PlanterCard({
   planter: p,
   arriving = false,
+  onEdit,
+  onRemove,
 }: {
   planter: PlanterView;
   arriving?: boolean;
+  onEdit?: () => void;
+  onRemove?: () => void;
 }) {
   const pump = pumpReadout(p);
   const noData = !p.online;
 
   return (
+    /* The whole card is a link, so the actions cannot live inside it: an
+       anchor may not contain buttons, and every click would also navigate.
+       They sit alongside it instead, positioned over the corner. */
+    <div className="card-wrap">
+      {(onEdit || onRemove) && (
+        <div className="card-actions">
+          {onEdit && (
+            <button type="button" className="card-action" onClick={onEdit} aria-label={`Edit ${p.name}`} title="Edit">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 20h4L19 9a2.8 2.8 0 10-4-4L4 16z" />
+              </svg>
+            </button>
+          )}
+          {onRemove && (
+            <button type="button" className="card-action card-action--danger" onClick={onRemove} aria-label={`Remove ${p.name}`} title="Remove">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 7h16M10 7V5h4v2M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
+
     <Link to={`/planters/${p.id}`} className={`card card--link${arriving ? ' card--arriving' : ''}`}>
       <div>
         <div className="card__title">{p.name}</div>
@@ -73,6 +100,7 @@ export function PlanterCard({
         </svg>
       </span>
     </Link>
+    </div>
   );
 }
 

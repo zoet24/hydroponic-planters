@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDevDrawer, useLongPress } from '../components/DevDrawer';
 import { PlanterCard } from '../components/PlanterCard';
+import { EditPlanterSheet, RemovePlanterSheet } from '../components/PlanterSheets';
 import { fleetSummary } from '../lib/format';
 import { usePlanters } from '../PlantersContext';
 
@@ -17,6 +18,13 @@ export function Home() {
   const waiting = fleet.length - planters.length;
 
   const arriving = useArrivals(planters.map((p) => p.id));
+
+  // Held by id rather than by object, so the sheet follows the planter as SSE
+  // pushes updates rather than freezing the copy it opened with.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const editing = planters.find((p) => p.id === editingId) ?? null;
+  const removing = planters.find((p) => p.id === removingId) ?? null;
 
   return (
     <div className="page">
@@ -52,10 +60,19 @@ export function Home() {
       {planters.length === 0 ? <EmptyState /> : (
         <div className="planter-grid">
           {planters.map((p) => (
-            <PlanterCard key={p.id} planter={p} arriving={arriving.has(p.id)} />
+            <PlanterCard
+              key={p.id}
+              planter={p}
+              arriving={arriving.has(p.id)}
+              onEdit={() => setEditingId(p.id)}
+              onRemove={() => setRemovingId(p.id)}
+            />
           ))}
         </div>
       )}
+
+      {editing && <EditPlanterSheet planter={editing} onClose={() => setEditingId(null)} />}
+      {removing && <RemovePlanterSheet planter={removing} onClose={() => setRemovingId(null)} />}
     </div>
   );
 }
