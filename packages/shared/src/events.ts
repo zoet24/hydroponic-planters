@@ -63,9 +63,13 @@ export function describeEvent(e: TimelineItem): string {
   switch (e.type) {
     case 'pump_run': {
       if (e.running) return 'Pump running';
-      if (e.durationMs === undefined) return 'Pump stopped';
+      // Interrupted: the planter dropped off mid-run, so the duration is how
+      // long we could see it running, not how long it ran. Say which.
+      const cut = p.interrupted === true;
+      if (e.durationMs === undefined) return cut ? 'Pump run interrupted' : 'Pump stopped';
       const minutes = Math.max(1, Math.round(e.durationMs / 60_000));
-      return `Pump ran for ${minutes} minute${minutes === 1 ? '' : 's'}`;
+      const ran = `Pump ran for ${minutes} minute${minutes === 1 ? '' : 's'}`;
+      return cut ? `${ran}, then the planter went offline` : ran;
     }
     case 'preset_applied':
       return `${String(p.name ?? 'Preset')} preset sent`;

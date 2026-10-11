@@ -48,28 +48,58 @@ function ingest(topic: string, raw: string): void {
   const { deviceId, signal } = parsed;
   const record = ensurePlanter(deviceId);
   const now = Date.now();
-  record.lastSeenAt = now;
+
+  // An offline notice is the broker publishing the device's will, not the
+  // device saying anything, so it is not evidence of having been seen. Keeping
+  // the previous value both stops "last seen just now" on a planter that has
+  // just died, and gives the run close-out below an honest timestamp.
+  const offlineNotice = signal === 'status' && raw.trim() === AVAILABILITY.offline;
+  const lastSeen = record.lastSeenAt;
+  if (!offlineNotice) record.lastSeenAt = now;
 
   switch (signal) {
     case 'status': {
       const online = raw.trim() === AVAILABILITY.online;
+
+      // Only a change is worth a timeline entry; a repeated birth is not.
       if (online !== record.online) {
         record.online = online;
         recordEvent(deviceId, online ? 'online' : 'offline', undefined, now);
-        // A device that has just come up has forgotten whatever the app set.
-        // The fan in particular always boots at speed 0, so desired and
-        // reported can never agree again on their own and the sync chip would
-        // stay amber for the rest of the session. Re-assert on the birth
-        // message so stored intent survives a reboot -- including a reboot of
-        // the backend, where `online` starts false and the retained status
-        // counts as a transition.
-        //
-        // This makes the app the source of truth: a value changed in the
-        // device's own web_server UI is overwritten the next time it restarts.
-        if (online) {
-          record.desiredSetAt = now;
-          publishDesired(record, record.desired);
-        }
+      }
+
+      // A device that has just come up has forgotten whatever the app set. The
+      // fan in particular always boots at speed 0, so desired and reported can
+      // never agree again on their own and the sync chip would stay amber for
+      // the rest of the session. Re-asserting on the birth message makes the
+      // app's stored intent survive a reboot.
+      //
+      // Keyed on receiving `online`, not on a transition to it. A device whose
+      // offline was never observed -- an ungraceful exit, or the simulator,
+      // which shares one MQTT connection across three planters and so has one
+      // will between them -- reconnects with `record.online` already true. On a
+      // transition check that is not a transition, nothing re-asserts, and the
+      // two stay diverged with no way to self-heal. ESPHome publishes its birth
+      // once per connection, so this costs no extra publishes in the normal case.
+      //
+      // This makes the app the source of truth: a value changed in the device's
+      // own web_server UI is overwritten the next time it restarts.
+      if (online) {
+        record.desiredSetAt = now;
+        publishDesired(record, record.desired);
+      } else if (record.reported.pumpOn === true) {
+        // The device vanished mid-run, so it never got to say "pump off".
+        // Without closing the run here the retained ON sits until the next
+        // boot, which then closes it at that moment: a power cut on the 5th
+        // produced a single run 6866 minutes long. Closed at the last moment
+        // we actually heard from it, and marked interrupted, because we do not
+        // know when the pump truly stopped -- only when we lost sight of it.
+        recordEvent(
+          deviceId,
+          'pump_run',
+          { on: false, speedPercent: record.reported.speedPercent, interrupted: true },
+          lastSeen ?? now,
+        );
+        record.reported.pumpOn = false;
       }
       break;
     }

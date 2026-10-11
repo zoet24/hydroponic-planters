@@ -39,7 +39,7 @@ vi.mock('mqtt', () => ({
 const { startMqtt } = await import('./mqtt');
 const { ensurePlanter, toView } = await import('./registry');
 const { AVAILABILITY, deviceTopics } = await import('@planter/shared');
-const { db } = await import('./db');
+const { db, recentEvents } = await import('./db');
 
 startMqtt();
 
@@ -85,15 +85,69 @@ describe('desired state is re-asserted on the birth message', () => {
     expect(Number(payloadFor(t.intervalHoursCommand))).toBe(record.desired.intervalHours);
   });
 
-  it('stays quiet while the device remains online', () => {
+  // The case the transition check missed. A device whose offline was never
+  // observed -- an ungraceful exit, or the simulator sharing one MQTT will
+  // across three planters -- announces itself with `online` already true. If
+  // that is not treated as a birth, nothing re-asserts and the planter sits on
+  // "not confirmed" for the rest of the session with no way to recover.
+  it('re-asserts on a repeated birth, where no offline was ever seen', () => {
     send(t.status, AVAILABILITY.online);
     harness.published.length = 0;
 
     send(t.status, AVAILABILITY.online);
-    expect(harness.published).toHaveLength(0);
+    expect(topicsPublished()).toContain(t.pumpSpeedCommand);
   });
 
-  it('stays quiet when the device drops offline', () => {
+  it('does not log a second online event for that repeated birth', async () => {
+    send(t.status, AVAILABILITY.online);
+    const before = recentEvents(DEVICE, 50).filter((e) => e.type === 'online').length;
+
+    send(t.status, AVAILABILITY.online);
+    const after = recentEvents(DEVICE, 50).filter((e) => e.type === 'online').length;
+    expect(after).toBe(before);
+  });
+
+  it('closes an open pump run when the device vanishes mid-run', () => {
+    const record = ensurePlanter(DEVICE);
+    send(t.status, AVAILABILITY.online);
+    send(t.pumpState, 'ON');
+    const seenAt = record.lastSeenAt!;
+
+    send(t.status, AVAILABILITY.offline);
+
+    const runs = recentEvents(DEVICE, 50).filter((e) => e.type === 'pump_run');
+    const close = runs[0]!;
+    const payload = JSON.parse(close.payload!) as { on: boolean; interrupted?: boolean };
+    expect(payload.on).toBe(false);
+    expect(payload.interrupted).toBe(true);
+    // Stamped when we last heard from the device, not when the will arrived:
+    // otherwise a planter that dies mid-run and returns days later records a
+    // single run spanning the entire outage.
+    expect(close.ts).toBe(seenAt);
+    expect(record.reported.pumpOn).toBe(false);
+  });
+
+  it('leaves an idle planter alone when it drops offline', () => {
+    const record = ensurePlanter(DEVICE);
+    send(t.status, AVAILABILITY.online);
+    send(t.pumpState, 'OFF');
+    const before = recentEvents(DEVICE, 50).filter((e) => e.type === 'pump_run').length;
+
+    send(t.status, AVAILABILITY.offline);
+    const after = recentEvents(DEVICE, 50).filter((e) => e.type === 'pump_run').length;
+    expect(after).toBe(before);
+  });
+
+  it('does not count the will as having seen the device', () => {
+    const record = ensurePlanter(DEVICE);
+    send(t.status, AVAILABILITY.online);
+    const seenAt = record.lastSeenAt;
+
+    send(t.status, AVAILABILITY.offline);
+    expect(record.lastSeenAt).toBe(seenAt);
+  });
+
+  it('publishes nothing when the device drops offline', () => {
     send(t.status, AVAILABILITY.online);
     harness.published.length = 0;
 
