@@ -46,10 +46,19 @@ startMqtt();
 const DEVICE = 'planter-reassert';
 const t = deviceTopics(DEVICE);
 
-const send = (topic: string, payload: string): void => {
-  const handler = harness.handlers.message as unknown as (tp: string, p: Buffer) => void;
-  handler(topic, Buffer.from(payload));
-};
+type MessageHandler = (tp: string, p: Buffer, packet: { retain: boolean }) => void;
+
+/** A live publish. The broker clears the retain flag for existing subscribers. */
+const send = (topic: string, payload: string): void =>
+  (harness.handlers.message as unknown as MessageHandler)(topic, Buffer.from(payload), {
+    retain: false,
+  });
+
+/** The broker replaying stored state to a subscriber that has just connected. */
+const replay = (topic: string, payload: string): void =>
+  (harness.handlers.message as unknown as MessageHandler)(topic, Buffer.from(payload), {
+    retain: true,
+  });
 
 const topicsPublished = (): string[] => harness.published.map((m) => m.topic);
 const payloadFor = (topic: string): string | undefined =>
@@ -145,6 +154,28 @@ describe('desired state is re-asserted on the birth message', () => {
 
     send(t.status, AVAILABILITY.offline);
     expect(record.lastSeenAt).toBe(seenAt);
+  });
+
+  // On a backend restart the broker replays everything it has stored, which
+  // made a planter that had been dark since morning report "last seen just
+  // now" -- next to an Offline chip, in the same sentence.
+  it('does not treat replayed state as having just seen the device', () => {
+    const record = ensurePlanter(DEVICE);
+    record.lastSeenAt = null;
+
+    replay(t.waterTemperature, '19.4');
+    expect(record.lastSeenAt).toBeNull();
+    // The reading itself is still taken: it is true, just not current.
+    expect(record.reported.waterTempC).toBe(19.4);
+  });
+
+  it('still re-asserts on a replayed birth, which is how a backend restart recovers', () => {
+    const record = ensurePlanter(DEVICE);
+    record.online = false;
+    harness.published.length = 0;
+
+    replay(t.status, AVAILABILITY.online);
+    expect(topicsPublished()).toContain(t.pumpSpeedCommand);
   });
 
   it('publishes nothing when the device drops offline', () => {

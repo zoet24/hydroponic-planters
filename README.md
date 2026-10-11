@@ -68,15 +68,32 @@ the Presets grid are hidden. Flip this on when the screen exists.
 pnpm demo:reset
 ```
 
-Wipes history, takes every planter back off the dashboard, seeds 24 hours of
-history and tells the running backend to re-read it. Run it about ten minutes
-before you go on, so "last seen" reads as fresh.
+Builds the presentation cast and tells the running backend to re-read it. Run
+it about ten minutes before you go on, so "last seen" reads as fresh.
 
-The dashboard is left **empty on purpose**: the talk opens on an empty dashboard
-and adding a planter is the first thing demonstrated.
+| | |
+|---|---|
+| `planter-003` | on the dashboard as **Kitchen windowsill**, three weeks of history |
+| `planter-002` | discovered, nothing recorded — onboarded live from scratch |
+| `planter-001` | the real board, left un-added — onboarded live once it connects |
 
-`--staged` adds the cast up front instead, for a rehearsal that starts after
-onboarding. `--hours 48` seeds more history.
+The history is authored rather than random: the pH drifts out of range and is
+corrected, a cold snap pushes the water below the preset band, the reservoir
+runs low once, and notes mark what the grower did about it. A chart of noise
+says nothing, and the point of showing weeks of data is that the trends mean
+something.
+
+The last feed is left a shade past due, so the dashboard opens with exactly one
+thing wanting attention and something to action live.
+
+`--days 42` for a longer history, `--blank` for nothing added anywhere, and
+`--established planter-002` to age a different one.
+
+Run exactly two simulated planters for this:
+
+```bash
+SIM_START=2 SIM_COUNT=2 pnpm dev:sim
+```
 
 The backend keeps planters in memory, so anything written straight to SQLite
 while it runs would be overwritten on the next MQTT message. The script posts to

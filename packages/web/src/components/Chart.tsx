@@ -206,6 +206,13 @@ export function EventStrip({
   const span = to - from;
   const inView = selectedTs !== null && selectedTs >= from && selectedTs <= to;
 
+  // Markers thin out as they crowd. Three weeks of a six-times-a-day pump is
+  // 126 runs across 656 units, so fixed 7-unit bars overlapped into one solid
+  // block -- the lane said "a pump exists" rather than showing the rhythm.
+  // Half the available pitch leaves a gap the same width as the mark.
+  const pitch = (PLOT.x1 - PLOT.x0) / Math.max(1, items.length);
+  const markW = Math.max(1.5, Math.min(7, pitch * 0.5));
+
   return (
     <div className="lane">
       <svg
@@ -225,11 +232,11 @@ export function EventStrip({
           {items.map((m) => (
             <rect
               key={m.ts}
-              x={xAt(m.ts, from, to) - 3.5}
+              x={xAt(m.ts, from, to) - markW / 2}
               y="10"
-              width="7"
+              width={markW}
               height="18"
-              rx="2"
+              rx={Math.min(2, markW / 2)}
               opacity={hover && hover.ts !== m.ts ? 0.45 : 1}
             />
           ))}

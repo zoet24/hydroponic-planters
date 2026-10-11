@@ -157,7 +157,14 @@ export class VirtualPlanter {
         // publish the snapped value back rather than the requested one — the
         // fix DESIGN.md §2 asks for, so reported state does not lie.
         this.intervalHours = snapToDivisorOf24(Math.round(n));
-        this.confirm(() => this.pub(this.t.intervalHoursState, numeric.encode(this.intervalHours)));
+        this.confirm(() => {
+          this.pub(this.t.intervalHoursState, numeric.encode(this.intervalHours));
+          // The schedule text derives from the interval, so it has to follow.
+          // The firmware recomputes it on a 60s template sensor; without this
+          // the simulator kept announcing the old times until the next hour
+          // boundary, so changing a preset left a visibly stale schedule.
+          this.pub(this.t.nextScheduledRuns, nextRuns(this.intervalHours));
+        });
         return;
       }
 

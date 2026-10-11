@@ -27,12 +27,20 @@ export function startMqtt(): MqttClient {
   });
 
   client.on('error', (err) => console.error('[mqtt] error:', err.message));
-  client.on('message', (topic, payload) => ingest(topic, payload.toString()));
+  client.on('message', (topic, payload, packet) =>
+    ingest(topic, payload.toString(), packet.retain),
+  );
 
   return client;
 }
 
-function ingest(topic: string, raw: string): void {
+/**
+ * @param retained True when the broker is replaying stored state to a new
+ *   subscriber, rather than the device having just said something. A live
+ *   publish reaches existing subscribers with the flag clear even when the
+ *   broker stores it, so this really does mean "history, not news".
+ */
+function ingest(topic: string, raw: string, retained = false): void {
   if (topic === SIM_TOPICS.roster) {
     try {
       setSimulatedIds(JSON.parse(raw) as string[]);
@@ -49,13 +57,15 @@ function ingest(topic: string, raw: string): void {
   const record = ensurePlanter(deviceId);
   const now = Date.now();
 
-  // An offline notice is the broker publishing the device's will, not the
-  // device saying anything, so it is not evidence of having been seen. Keeping
-  // the previous value both stops "last seen just now" on a planter that has
-  // just died, and gives the run close-out below an honest timestamp.
+  // Two kinds of message are not evidence the device was just seen. An offline
+  // notice is the broker publishing the device's will, and a retained message
+  // is the broker replaying what it stored, possibly hours ago -- on a backend
+  // restart that made a planter which had been dark all morning report "last
+  // seen just now". Keeping the previous value also gives the run close-out
+  // below an honest timestamp.
   const offlineNotice = signal === 'status' && raw.trim() === AVAILABILITY.offline;
   const lastSeen = record.lastSeenAt;
-  if (!offlineNotice) record.lastSeenAt = now;
+  if (!offlineNotice && !retained) record.lastSeenAt = now;
 
   switch (signal) {
     case 'status': {

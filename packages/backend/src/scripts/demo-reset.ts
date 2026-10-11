@@ -3,40 +3,39 @@ import { BUILTIN_PRESETS, presetToDesired } from '@planter/shared';
 import { config } from '../config';
 import { db } from '../db';
 import { hydrate, resolvePreset, seedPresets } from '../registry';
-import { seedHistory } from './seed-history';
+import { seedEstablished } from './seed-established';
 
 /**
  * Put the demo back to its starting position. Run it about ten minutes before
  * you go on, so "last seen" timestamps look fresh.
  *
- *   pnpm demo:reset              # empty dashboard, ready to onboard live
- *   pnpm demo:reset --staged     # cast already added, to skip onboarding
- *   pnpm demo:reset --hours 48
+ *   pnpm demo:reset               # the presentation cast
+ *   pnpm demo:reset --days 42     # a longer history on the established planter
+ *   pnpm demo:reset --blank       # nothing added anywhere, no history at all
  *
- * Wipes history, takes every planter back off the dashboard, and seeds plausible
- * readings so the charts are not empty the moment a planter is added.
+ * The cast is built around the three acts of the talk:
  *
- * The default leaves the fleet un-added on purpose: the talk opens on an empty
- * dashboard and onboarding a planter is the first thing demonstrated. Use
- * --staged for a rehearsal that starts after that point.
+ *   planter-003  added, three weeks of history  -- what a tended tower looks like
+ *   planter-002  discovered, nothing recorded   -- onboarded live from scratch
+ *   planter-001  the real board, left un-added  -- onboarded live once plugged in
+ *
+ * Everything else is cleared, so the dashboard opens with exactly one planter
+ * on it and the rest waiting under Add planter.
  */
 
 const { values } = parseArgs({
   options: {
-    hours: { type: 'string' },
-    /** Add the cast up front, for a rehearsal that skips onboarding. */
-    staged: { type: 'boolean' },
+    days: { type: 'string' },
+    blank: { type: 'boolean' },
+    /** Which planter gets the history. Must be one the simulator is running. */
+    established: { type: 'string' },
   },
 });
 
-const hours = Number(values.hours ?? 24);
-
-/** Names and plants the demo opens with, when --staged is passed. */
-const CAST = [
-  { id: 'planter-001', name: 'Kitchen basil', presetId: 'basil' },
-  { id: 'planter-002', name: 'Windowsill mint', presetId: 'mint' },
-  { id: 'planter-003', name: 'Lettuce rack', presetId: 'lettuce' },
-] as const;
+const days = Number(values.days ?? 21);
+const ESTABLISHED = values.established ?? 'planter-003';
+const ESTABLISHED_NAME = 'Kitchen windowsill';
+const ESTABLISHED_PRESET = 'mint';
 
 async function main(): Promise<void> {
   seedPresets();
@@ -48,15 +47,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log('Wiping history…');
+  console.log('Clearing history and taking every planter off the dashboard…');
   db.exec('DELETE FROM readings; DELETE FROM events; DELETE FROM ph_checkins;');
-
-  // Everything comes off the dashboard. Name and preset are cleared too, so a
-  // planter added live starts blank rather than wearing last rehearsal's name.
-  console.log('Taking every planter off the dashboard…');
   for (const { id } of planters) {
     db.prepare(
-      'UPDATE planters SET claimed_at = NULL, name = ?, plant_type = NULL, preset_id = NULL WHERE id = ?',
+      `UPDATE planters SET claimed_at = NULL, name = ?, plant_type = NULL, preset_id = NULL,
+                           planted_at = NULL WHERE id = ?`,
     ).run(id, id);
   }
 
@@ -64,54 +60,68 @@ async function main(): Promise<void> {
   // on the next MQTT message. Tell it to re-read.
   const notified = await notifyBackend();
 
-  if (values.staged) {
-    console.log('Adding the cast (--staged)…');
-    for (const role of CAST) {
-      if (!planters.some((p) => p.id === role.id)) continue;
-      const preset = resolvePreset(role.presetId);
-      if (!preset) continue;
-
-      if (notified) {
-        // Through the API, not the database: adding has to publish the MQTT
-        // commands too. Writing desired state straight to SQLite left every
-        // planter showing "Not confirmed", because nothing was ever sent.
-        await call(`/api/planters/${role.id}/add`, 'POST', {
-          name: role.name,
-          presetId: preset.id,
-        });
-      } else {
-        db.prepare(
-          `UPDATE planters SET name = ?, plant_type = ?, preset_id = ?, desired_json = ?,
-                               claimed_at = ? WHERE id = ?`,
-        ).run(
-          role.name,
-          preset.plantType,
-          preset.id,
-          JSON.stringify(presetToDesired(preset)),
-          Date.now(),
-          role.id,
-        );
-      }
-      console.log(`  ${role.id}  ${role.name} (${preset.name})`);
-    }
+  if (values.blank) {
+    console.log('\nReady. Dashboard is empty and nothing has any history (--blank).');
+    return;
   }
 
-  console.log(`Seeding ${hours}h of history…`);
-  for (const { id } of planters) {
-    const { readings, runs } = seedHistory(id, hours);
-    console.log(`  ${id}: ${readings} readings, ${runs} pump runs`);
+  const preset = resolvePreset(ESTABLISHED_PRESET);
+  if (!preset) throw new Error(`No ${ESTABLISHED_PRESET} preset`);
+
+  if (!planters.some((p) => p.id === ESTABLISHED)) {
+    console.log(`\n${ESTABLISHED} does not exist yet, so there is nothing to age.`);
+    console.log('Start the simulator first: SIM_START=2 SIM_COUNT=2 pnpm dev:sim');
+    return;
   }
+
+  console.log(`Adding ${ESTABLISHED} as "${ESTABLISHED_NAME}" (${preset.name})…`);
+  if (notified) {
+    // Through the API, not the database: adding has to publish the pump
+    // settings to the device as well as storing them.
+    await call(`/api/planters/${ESTABLISHED}/add`, 'POST', {
+      name: ESTABLISHED_NAME,
+      presetId: preset.id,
+    });
+  } else {
+    db.prepare(
+      `UPDATE planters SET name = ?, plant_type = ?, preset_id = ?, desired_json = ?,
+                           claimed_at = ? WHERE id = ?`,
+    ).run(
+      ESTABLISHED_NAME,
+      preset.plantType,
+      preset.id,
+      JSON.stringify(presetToDesired(preset)),
+      Date.now(),
+      ESTABLISHED,
+    );
+  }
+
+  console.log(`Seeding ${days} days of history…`);
+  const r = seedEstablished(ESTABLISHED, preset, days);
+  console.log(
+    `  ${r.readings} readings, ${r.runs} pump runs, ${r.phChecks} pH checks, ` +
+      `${r.feeds} feeds, ${r.notes} notes`,
+  );
+
+  // Seeding wrote straight to SQLite, so the in-memory copy is stale.
+  await notifyBackend();
+
+  // The planted date goes through the API, not SQL: the backend rewrites the
+  // planter row on every MQTT message, and the simulator publishes constantly,
+  // so a direct UPDATE is overwritten before anyone sees it.
+  const dated = notified
+    ? await call(`/api/planters/${ESTABLISHED}`, 'PATCH', { plantedAt: r.plantedAt })
+    : (db.prepare('UPDATE planters SET planted_at = ? WHERE id = ?').run(r.plantedAt, ESTABLISHED),
+      true);
+  if (!dated) console.log('  (could not set the planted date)');
 
   console.log(
     notified
       ? '\nReady. The app has already picked this up over SSE.'
       : '\nReady, but the backend is not running — start it before the demo.',
   );
-  console.log(
-    values.staged
-      ? 'The dashboard opens with the cast already on it.'
-      : 'The dashboard opens empty. Add a planter from inside the app to begin.',
-  );
+  console.log(`  on the dashboard : ${ESTABLISHED} — ${ESTABLISHED_NAME}, ${days} days of history`);
+  console.log('  under Add planter: everything else, including the real board when it connects');
   console.log(`Built-in presets available: ${BUILTIN_PRESETS.length}`);
 }
 
