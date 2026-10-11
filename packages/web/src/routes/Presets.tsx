@@ -4,12 +4,23 @@ import { AI_PRESETS_ENABLED } from '../features';
 import { api, post, usePlanter } from '../PlantersContext';
 import type { Preset } from '../types';
 
-/** The three lines each preset card shows, in the artboard's order. */
+/**
+ * What each preset card shows.
+ *
+ * Runtime and speed are deliberately absent: they are the same for every
+ * preset because they describe the tower, and listing them on a plant card
+ * would imply a choice that is not being made.
+ */
 const specs = (p: Preset) => [
-  ['Pump', `Every ${p.pump.intervalHours} h, ${p.pump.runtimeMinutes} min`],
+  ['Water', runsLabel(p.pump.runsPerDay)],
+  ['Ideal temperature', `${p.waterTempC.min} to ${p.waterTempC.max} °C`],
   ['Target pH', `${p.ph.targetMin} to ${p.ph.targetMax}`],
   ['pH check', `Every ${p.ph.checkIntervalDays} days`],
+  ['Feed', `${p.nutrients.type}, every ${p.nutrients.scheduleDays} days`],
 ];
+
+const runsLabel = (runsPerDay: number): string =>
+  runsPerDay === 1 ? 'Once a day' : `${runsPerDay} times a day`;
 
 export function Presets() {
   const { id } = useParams();
@@ -66,8 +77,9 @@ export function Presets() {
       <div className="presets__intro">
         <h1>Choose a preset</h1>
         <p className="lede">
-          A preset sets the pump schedule, the target pH and how often to check it. The app sends
-          it as desired settings and shows syncing until the planter confirms.
+          A preset describes what the plant wants: how often to water it, its ideal temperature
+          and pH, and what to feed it. How long the pump runs and how hard are properties of the
+          tower, so they stay the same whichever you choose.
         </p>
       </div>
 

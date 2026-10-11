@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Preset } from './preset';
+import { dutyCycle, runsPerDayToIntervalHours, SAFETY, TOWER_PUMP, type Preset } from './preset';
 
 /**
  * Desired versus reported state. Desired is what the app wants; reported is what
@@ -10,13 +10,32 @@ import type { Preset } from './preset';
 export const DESIRED_FIELDS = ['pumpEnable', 'speedPercent', 'intervalHours', 'runtimeMinutes'] as const;
 export type DesiredField = (typeof DESIRED_FIELDS)[number];
 
-export const DesiredState = z.object({
+const DesiredStateShape = z.object({
   pumpEnable: z.boolean(),
   speedPercent: z.number().int().min(0).max(100),
   intervalHours: z.number().int().min(1).max(24),
   runtimeMinutes: z.number().min(1).max(30),
 });
-export type DesiredState = z.infer<typeof DesiredState>;
+
+/**
+ * Desired state, with the duty-cycle cap attached.
+ *
+ * The rule used to sit on Preset, but presets no longer carry a runtime --
+ * TOWER_PUMP fixes it, and 2 min in the shortest interval is 0.033 against a
+ * 0.25 cap, so the rule there could never fire. Here it guards the one path
+ * where runtime still varies: anything writing desired state directly.
+ */
+export const DesiredState = DesiredStateShape.refine(
+  (d) => dutyCycle(d.intervalHours, d.runtimeMinutes) <= SAFETY.pump.maxDutyCycle,
+  {
+    error: `pump duty cycle above ${SAFETY.pump.maxDutyCycle * 100}%`,
+    path: ['runtimeMinutes'],
+  },
+);
+export type DesiredState = z.infer<typeof DesiredStateShape>;
+
+/** The plain shape, for the partial patches the API accepts. */
+export const DesiredStatePatch = DesiredStateShape.partial();
 
 /** Everything the device reports. All optional: it may not have said yet. */
 export const ReportedState = z.object({
@@ -39,9 +58,10 @@ export type ReportedState = z.infer<typeof ReportedState>;
 export function presetToDesired(preset: Preset, pumpEnable = true): DesiredState {
   return {
     pumpEnable,
-    speedPercent: preset.pump.speedPercent,
-    intervalHours: preset.pump.intervalHours,
-    runtimeMinutes: preset.pump.runtimeMinutes,
+    // Plant decides how often; the tower decides how long and how hard.
+    speedPercent: TOWER_PUMP.speedPercent,
+    intervalHours: runsPerDayToIntervalHours(preset.pump.runsPerDay),
+    runtimeMinutes: TOWER_PUMP.runtimeMinutes,
   };
 }
 

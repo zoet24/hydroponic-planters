@@ -14,7 +14,7 @@ import {
   eventTone,
   type PlanterEvent,
 } from '@planter/shared';
-import { growingFor, nutrientSummary, relativeTime, waterLabel } from '../lib/format';
+import { dueIn, growingFor, relativeTime, waterLabel } from '../lib/format';
 import { sortAlerts, trimZero, type Point } from '@planter/shared';
 import { api, patch, post, usePlanter } from '../PlantersContext';
 import type { PlanterView } from '../types';
@@ -198,17 +198,91 @@ function Live({ planter: p }: { planter: PlanterView }) {
           }
         />
         <Stat label="Pump" value={pumpState(p)} note={pumpNote(p)} />
-      </div>
 
-      {/* Recording something is a different act from changing the planter's
-          configuration, so these sit with the readings rather than in Config. */}
-      <div className="row row--records">
-        <Link to={`/planters/${p.id}/nutrients`} className="button button--primary">Record nutrients</Link>
-        <Link to={`/planters/${p.id}/ph`} className="button button--primary">Record pH</Link>
-        <Link to={`/planters/${p.id}/note`} className="button button--primary">Add note</Link>
+        {/* Records, not telemetry: what the grower last did, and when it is
+            next wanted. Alongside the sensors because that is the question
+            being asked -- how is it doing right now. */}
+        <Stat
+          label="Nutrients"
+          value={nutrientTileValue(p)}
+          chip={nutrientTileChip(p)}
+          note={
+            p.lastNutrientsAt
+              ? `Added ${relativeTime(p.lastNutrientsAt)}`
+              : 'Never recorded'
+          }
+          add={{ to: `/planters/${p.id}/nutrients`, label: 'Record nutrients' }}
+        />
+        <Stat
+          label="pH"
+          value={p.lastPhValue !== null ? p.lastPhValue.toFixed(1) : '—'}
+          chip={phTileChip(p)}
+          note={
+            p.lastPhCheckAt
+              ? `Checked ${relativeTime(p.lastPhCheckAt)}`
+              : 'No reading recorded yet'
+          }
+          add={{ to: `/planters/${p.id}/ph`, label: 'Record a pH reading' }}
+        />
+        <Stat
+          label="Notes"
+          // The date leads, as on the Nutrients tile. The note itself goes
+          // underneath: a sentence set at display size would dwarf the row.
+          value={p.lastNoteAt ? relativeTime(p.lastNoteAt) : 'None'}
+          chip={
+            p.noteCount > 0
+              ? { tone: 'green', text: p.noteCount === 1 ? '1 note' : `${p.noteCount} notes` }
+              : null
+          }
+          note={p.lastNoteText ?? 'Nothing written down yet'}
+          clampNote
+          add={{ to: `/planters/${p.id}/note`, label: 'Add a note' }}
+        />
       </div>
     </section>
   );
+}
+
+/**
+ * A status word, as on the Water level tile, rather than a date.
+ *
+ * The date moves to the note underneath, so this tile reads the same way as
+ * the pH one beside it: state, then a qualifier, then when it was last done.
+ */
+function nutrientTileValue(p: PlanterView): string {
+  if (!p.lastNutrientsAt) return 'Never';
+  if (!p.preset) return 'Added';
+  if (p.nutrientsStatus === 'overdue') return 'Overdue';
+  if (p.nutrientsStatus === 'due') return 'Due';
+  return 'OK';
+}
+
+/**
+ * Green while the feed is in date, red once it is genuinely late.
+ *
+ * Amber sits between them for the grace period, matching how the pH tile and
+ * the Actions list already treat "wanted soon" against "wanted now".
+ */
+function nutrientTileChip(
+  p: PlanterView,
+): { tone: 'green' | 'amber' | 'red'; text: string } | null {
+  if (!p.preset) return null;
+  if (p.nutrientsStatus === 'overdue') return { tone: 'red', text: dueIn(p.nutrientsDueAt) };
+  if (p.nutrientsStatus === 'due') return { tone: 'amber', text: 'Due now' };
+  return { tone: 'green', text: dueIn(p.nutrientsDueAt) };
+}
+
+/** Reports the reading against the preset band, not just whether it is due. */
+function phTileChip(p: PlanterView): { tone: 'green' | 'amber'; text: string } | null {
+  if (!p.preset) return null;
+  if (p.lastPhValue === null) return { tone: 'amber', text: 'Check due' };
+
+  const { targetMin, targetMax } = p.preset.ph;
+  if (p.lastPhValue < targetMin) return { tone: 'amber', text: 'Below target' };
+  if (p.lastPhValue > targetMax) return { tone: 'amber', text: 'Above target' };
+
+  const due = p.phCheckDueAt !== null && p.phCheckDueAt <= Date.now();
+  return due ? { tone: 'amber', text: 'Check due' } : { tone: 'green', text: 'In range' };
 }
 
 const pumpState = (p: PlanterView): string => {
@@ -236,22 +310,46 @@ function Stat({
   unit,
   chip,
   note,
+  clampNote,
+  add,
 }: {
   label: string;
   value: string;
   unit?: string;
   chip?: { tone: 'green' | 'amber' | 'red'; text: string } | null;
   note?: string;
+  /** Hold a long note to two lines, rather than letting it stretch the row. */
+  clampNote?: boolean;
+  /**
+   * Turns the tile into something you can add to.
+   *
+   * Only the tiles holding things the grower records get one. The sensor tiles
+   * have nothing to add, so the asymmetry says which is which.
+   */
+  add?: { to: string; label: string };
 }) {
   return (
     <div className="card stat">
-      <div className="stat__label">{label}</div>
+      <div className="stat__head">
+        <div className="stat__label">{label}</div>
+        {add && (
+          <Link to={add.to} className="stat__add" aria-label={add.label} title={add.label}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </Link>
+        )}
+      </div>
       <div className="stat__value">
         {value}
         {unit && <span className="stat__unit">{unit}</span>}
       </div>
       {chip && <Chip tone={chip.tone}>{chip.text}</Chip>}
-      {note && <p className="stat__note">{note}</p>}
+      {note && (
+        <p className={`stat__note${clampNote ? ' stat__note--clamp' : ''}`} title={clampNote ? note : undefined}>
+          {note}
+        </p>
+      )}
     </div>
   );
 }
@@ -279,7 +377,7 @@ function Config({ planter: p }: { planter: PlanterView }) {
   return (
     <section className="section">
       <div className="section__head">
-        <h2>Config{p.preset ? `: ${p.preset.name} preset` : ''}</h2>
+        <h2>Planter Config</h2>
         <div className="row">
           <Link
             to={`/planters/${p.id}/preset`}
@@ -344,10 +442,6 @@ function Config({ planter: p }: { planter: PlanterView }) {
             </span>
           </div>
 
-          <div className="config__row config__row--foot">
-            <span className="config__setting">Nutrients</span>
-            <span className="config__spanrest">{nutrientSummary(p)}</span>
-          </div>
         </div>
 
         <div className="row row--spread">

@@ -117,17 +117,6 @@ function chipFor(state: DueState, noun: string): DueChip | null {
   }
 }
 
-/** "0.5× label strength, every 7 days — last added 5 days ago" */
-export function nutrientSummary(p: PlanterView, now = Date.now()): string {
-  if (!p.preset) return 'Choose a preset to set a nutrient schedule.';
-
-  const { strengthMultiplier, scheduleDays } = p.preset.nutrients;
-  const schedule = `${strengthMultiplier}× label strength, every ${scheduleDays} days`;
-
-  if (p.nutrientsDueAt === null) return `${schedule} — not recorded yet`;
-  const lastAdded = p.nutrientsDueAt - scheduleDays * 86_400_000;
-  return `${schedule} — last added ${relativeDays(lastAdded, now)}`;
-}
 
 function relativeDays(ts: number, now: number): string {
   const days = Math.round((now - ts) / 86_400_000);
@@ -149,4 +138,20 @@ export function growingFor(plantedAt: number | null, now = Date.now()): string |
   if (days < 14) return `Growing for ${days} days`;
   const weeks = Math.round(days / 7);
   return `Growing for ${weeks} weeks`;
+}
+
+/**
+ * How far off a due date is, in either direction.
+ *
+ * The mirror of relativeTime: that one looks back at something recorded, this
+ * one looks forward at something owed.
+ */
+export function dueIn(dueAt: number | null, now = Date.now()): string {
+  if (dueAt === null) return 'No schedule';
+  const days = Math.round((dueAt - now) / 86_400_000);
+  if (days > 1) return `Next feed in ${days} days`;
+  if (days === 1) return 'Next feed tomorrow';
+  if (days === 0) return 'Due today';
+  if (days === -1) return '1 day overdue';
+  return `${Math.abs(days)} days overdue`;
 }

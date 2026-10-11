@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_PRESETS, findBuiltinPreset } from './presets';
-import { clampToSafety, dutyCycle, Preset, PresetShape, SAFETY, type Preset as P } from './preset';
+import { clampToSafety, dutyCycle, Preset, PresetShape, runsPerDayToIntervalHours, SAFETY, TOWER_PUMP, type Preset as P } from './preset';
 
 const basil = (): P => structuredClone(findBuiltinPreset('basil')!);
 
@@ -28,26 +28,19 @@ describe('built-in presets', () => {
 });
 
 describe('schema rules', () => {
-  it('rejects a pump interval that does not divide 24', () => {
+  it('rejects a run frequency that does not divide 24', () => {
     const p = basil();
-    p.pump.intervalHours = 5;
+    p.pump.runsPerDay = 5; // 24/5 is not a whole number of hours
     expect(Preset.safeParse(p).success).toBe(false);
     expect(PresetShape.safeParse(p).success).toBe(true); // shape is fine, the rule is not
   });
 
-  it('rejects a duty cycle above the limit, where the shape bounds allow it', () => {
-    const p = basil();
-    p.pump.intervalHours = 1;
-    p.pump.runtimeMinutes = 20; // 20/60 = 33%, over the 25% limit
-    expect(PresetShape.safeParse(p).success).toBe(true); // every field is in range
-    expect(Preset.safeParse(p).success).toBe(false); // the cross-field rule catches it
-  });
-
-  it('allows a long runtime when the interval is long enough to carry it', () => {
-    const p = basil();
-    p.pump.intervalHours = 12;
-    p.pump.runtimeMinutes = 30; // 30/720 = 4%
-    expect(Preset.safeParse(p).success).toBe(true);
+  it('accepts every allowed frequency', () => {
+    for (const runs of SAFETY.pump.runsPerDayAllowed) {
+      const p = basil();
+      p.pump.runsPerDay = runs;
+      expect(Preset.safeParse(p).success).toBe(true);
+    }
   });
 
   it('rejects a pH range narrower than the minimum span', () => {
@@ -57,29 +50,43 @@ describe('schema rules', () => {
     expect(Preset.safeParse(p).success).toBe(false);
   });
 
-  it('rejects a pump speed below the stall threshold', () => {
+  it('requires a feed type, so the reminder can say what to add', () => {
     const p = basil();
-    p.pump.speedPercent = 5;
+    (p.nutrients as { type: string }).type = '';
     expect(PresetShape.safeParse(p).success).toBe(false);
   });
 });
 
-describe('clampToSafety', () => {
-  it('snaps a non-divisor interval to the nearest allowed value', () => {
-    const p = basil();
-    p.pump.intervalHours = 5;
-    const { preset, warnings } = clampToSafety(p);
-    expect(preset.pump.intervalHours).toBe(4);
-    expect(warnings.join(' ')).toContain('divisor of 24');
+describe('TOWER_PUMP', () => {
+  // Runtime and speed are tower properties, so they are not per-plant any more.
+  it('keeps every preset well inside the duty-cycle cap', () => {
+    for (const preset of BUILTIN_PRESETS) {
+      const hours = runsPerDayToIntervalHours(preset.pump.runsPerDay);
+      expect(dutyCycle(hours, TOWER_PUMP.runtimeMinutes)).toBeLessThanOrEqual(SAFETY.pump.maxDutyCycle);
+    }
   });
 
-  it('caps a runaway duty cycle', () => {
+  it('uses a speed above the stall threshold', () => {
+    expect(TOWER_PUMP.speedPercent).toBeGreaterThanOrEqual(SAFETY.pump.speedPercent.min);
+    expect(TOWER_PUMP.speedPercent).toBeLessThanOrEqual(SAFETY.pump.speedPercent.max);
+  });
+
+  it('converts runs per day into whole hours for every allowed value', () => {
+    for (const runs of SAFETY.pump.runsPerDayAllowed) {
+      const hours = runsPerDayToIntervalHours(runs);
+      expect(Number.isInteger(hours)).toBe(true);
+      expect(SAFETY.pump.intervalHoursAllowed).toContain(hours);
+    }
+  });
+});
+
+describe('clampToSafety', () => {
+  it('snaps a frequency that does not divide 24 to the nearest allowed value', () => {
     const p = basil();
-    p.pump.intervalHours = 1;
-    p.pump.runtimeMinutes = 20;
+    p.pump.runsPerDay = 5;
     const { preset, warnings } = clampToSafety(p);
-    expect(dutyCycle(preset.pump.intervalHours, preset.pump.runtimeMinutes)).toBeLessThanOrEqual(SAFETY.pump.maxDutyCycle);
-    expect(warnings.join(' ')).toContain('duty cycle');
+    expect(preset.pump.runsPerDay).toBe(4);
+    expect(warnings.join(' ')).toContain('divide 24');
   });
 
   it('widens a pH range that is too narrow', () => {
@@ -93,10 +100,15 @@ describe('clampToSafety', () => {
   it('always produces something that passes the full schema', () => {
     const hostile: P = {
       ...basil(),
-      pump: { intervalHours: 1, runtimeMinutes: 15, speedPercent: 100 },
+      pump: { runsPerDay: 5 },
       waterTempC: { min: 34, max: 35 },
       ph: { targetMin: 8, targetMax: 8, checkIntervalDays: 14 },
-      nutrients: { strengthMultiplier: 1.5, scheduleDays: 28, guidance: 'Feed sparingly.' },
+      nutrients: {
+        type: 'Balanced herb feed',
+        strengthMultiplier: 1.5,
+        scheduleDays: 28,
+        guidance: 'Feed sparingly.',
+      },
     };
     const { preset, warnings } = clampToSafety(hostile);
     expect(Preset.safeParse(preset).success).toBe(true);
@@ -109,7 +121,7 @@ describe('clampToSafety', () => {
 
   it('does not mutate its input', () => {
     const p = basil();
-    p.pump.intervalHours = 5;
+    p.pump.runsPerDay = 5;
     const snapshot = structuredClone(p);
     clampToSafety(p);
     expect(p).toEqual(snapshot);

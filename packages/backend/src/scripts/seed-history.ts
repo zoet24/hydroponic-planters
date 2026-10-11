@@ -1,4 +1,4 @@
-import { nextPumpRun, waterTempC } from '@planter/shared';
+import { nextPumpRun, runsPerDayToIntervalHours, TOWER_PUMP, waterTempC } from '@planter/shared';
 import { db } from '../db';
 import { resolvePreset } from '../registry';
 
@@ -50,8 +50,8 @@ export function seedHistory(planterId: string, hours = 24, replace = true): Seed
       | { preset_id: string | null }
       | undefined;
     const preset = resolvePreset(row?.preset_id ?? null);
-    const interval = preset?.pump.intervalHours ?? 6;
-    const runtime = preset?.pump.runtimeMinutes ?? 2;
+    const interval = preset ? runsPerDayToIntervalHours(preset.pump.runsPerDay) : 6;
+    const runtime = TOWER_PUMP.runtimeMinutes;
 
     let readings = 0;
     for (let ts = from; ts <= now; ts += STEP_MS) {

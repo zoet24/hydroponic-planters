@@ -493,7 +493,6 @@ h1 {
 /* The base row. Its absence is why button groups sat flush against each
    other: the gap on the modifiers had no flex container to apply to. */
 .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.row--records { gap: 14px; }
 /* Pump controls size to their text rather than stretching across the card. */
 .row--spread { gap: 14px; }
 .row--spread .button { flex: 0 0 auto; }
@@ -521,7 +520,34 @@ h1 {
 @container page (min-width: 1040px) { .stat-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 .stat { gap: 10px; }
+/* The label and, on a record tile, its add button. */
+.stat__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .stat__label { font-size: 17px; color: var(--muted); font-weight: 500; }
+.stat__add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  /* Pulled into the card's padding so the 36px square still reaches a 44px
+     touch target without pushing the label down. */
+  margin: -4px -4px 0 0;
+  border-radius: 10px;
+  background: var(--green);
+  color: #fff;
+  text-decoration: none;
+}
+.stat__add:hover { filter: brightness(1.08); }
+.stat__add:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* A note can run long; two lines, then ellipsis. */
+.stat__note--clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .stat__value {
   font-family: var(--display);
   font-weight: 700;

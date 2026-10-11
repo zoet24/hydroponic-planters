@@ -13,6 +13,11 @@ export const SAFETY = {
      */
     intervalHoursAllowed: [1, 2, 3, 4, 6, 8, 12, 24] as const,
     /**
+     * What a preset actually authors. The inverse of the allowed intervals, so
+     * the two can never disagree, and the unit a grower thinks in.
+     */
+    runsPerDayAllowed: [1, 2, 3, 4, 6, 8, 12, 24] as const,
+    /**
      * Mirrors the firmware's own 1-30 limit. The real constraint is maxDutyCycle
      * below: capping runtime at 15 instead would make the duty-cycle rule
      * unreachable (15/60 = 0.25 exactly at the shortest interval), while also
@@ -44,13 +49,16 @@ export const PresetShape = z.object({
   plantType: z.string().min(1).max(40),
   /** One line for the preset card. Optional: a proposal without one still parses. */
   description: z.string().min(1).max(80).optional(),
+  /**
+   * How often, and nothing else.
+   *
+   * Runtime and speed used to live here too, varying by plant. They are
+   * properties of the tower -- its height, the pump's head, the bore of the
+   * tubing, how the medium holds water -- and none of that changes when basil
+   * is swapped for kale. They now sit in TOWER_PUMP, calibrated once.
+   */
   pump: z.object({
-    intervalHours: z.number().int().min(1).max(24),
-    runtimeMinutes: z
-      .number()
-      .min(SAFETY.pump.runtimeMinutes.min)
-      .max(SAFETY.pump.runtimeMinutes.max),
-    speedPercent: z.number().int().min(SAFETY.pump.speedPercent.min).max(SAFETY.pump.speedPercent.max),
+    runsPerDay: z.number().int().min(1).max(24),
   }),
   waterTempC: z.object({
     min: z.number().min(SAFETY.waterTempC.min).max(SAFETY.waterTempC.max),
@@ -66,6 +74,8 @@ export const PresetShape = z.object({
       .max(SAFETY.ph.checkIntervalDays.max),
   }),
   nutrients: z.object({
+    /** The kind of feed to use, e.g. "Balanced leafy-green feed". */
+    type: z.string().min(1).max(60),
     strengthMultiplier: z
       .number()
       .min(SAFETY.nutrients.strengthMultiplier.min)
@@ -81,19 +91,31 @@ export const PresetShape = z.object({
 });
 
 /**
+ * Pump settings that belong to the tower, not the plant.
+ *
+ * Measured once on the real tower and shared by every preset. Keeping them out
+ * of the plant data stops ten made-up variations standing in for one number
+ * nobody had measured.
+ */
+export const TOWER_PUMP = { runtimeMinutes: 2, speedPercent: 70 } as const;
+
+/** Runs per day is the authored unit; the device speaks interval hours. */
+export const runsPerDayToIntervalHours = (runsPerDay: number): number => 24 / runsPerDay;
+
+/**
  * Preset is PresetShape plus the cross-field rules. This is what anything
  * touching a device must satisfy. The duty-cycle rule is the important one: a
  * plausible-sounding "every hour for 20 minutes" is a pump running a third of
  * its life and a flooded desk.
  */
 export const Preset = PresetShape.refine(
-  (p) => (SAFETY.pump.intervalHoursAllowed as readonly number[]).includes(p.pump.intervalHours),
-  { error: 'pump interval must divide 24 evenly', path: ['pump', 'intervalHours'] },
+  (p) => (SAFETY.pump.runsPerDayAllowed as readonly number[]).includes(p.pump.runsPerDay),
+  { error: 'runs per day must divide 24 evenly', path: ['pump', 'runsPerDay'] },
 )
-  .refine((p) => dutyCycle(p.pump.intervalHours, p.pump.runtimeMinutes) <= SAFETY.pump.maxDutyCycle, {
-    error: `pump duty cycle above ${SAFETY.pump.maxDutyCycle * 100}%`,
-    path: ['pump', 'runtimeMinutes'],
-  })
+  // The duty-cycle rule has moved to DesiredState. With runtime fixed by
+  // TOWER_PUMP a preset cannot reach the cap -- 2/60 is 0.033 against 0.25 --
+  // so a rule here would be unreachable. It now guards the one path where
+  // runtime can still vary: anything setting desired state directly.
   .refine((p) => p.waterTempC.max - p.waterTempC.min >= SAFETY.waterTempC.minSpan, {
     error: `water temperature range must span at least ${SAFETY.waterTempC.minSpan}°C`,
     path: ['waterTempC'],
@@ -114,11 +136,11 @@ export interface ClampResult {
 const clampNumber = (n: number, min: number, max: number): number => Math.min(max, Math.max(min, n));
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
-const nearestAllowedInterval = (hours: number): number => {
-  const allowed = SAFETY.pump.intervalHoursAllowed;
+const nearestAllowedRuns = (runsPerDay: number): number => {
+  const allowed = SAFETY.pump.runsPerDayAllowed;
   let best = allowed[0] as number;
   for (const candidate of allowed) {
-    if (Math.abs(candidate - hours) < Math.abs(best - hours)) best = candidate;
+    if (Math.abs(candidate - runsPerDay) < Math.abs(best - runsPerDay)) best = candidate;
   }
   return best;
 };
@@ -133,42 +155,12 @@ export function clampToSafety(input: Preset): ClampResult {
   const warnings: string[] = [];
   const p: Preset = structuredClone(input);
 
-  if (!(SAFETY.pump.intervalHoursAllowed as readonly number[]).includes(p.pump.intervalHours)) {
-    const snapped = nearestAllowedInterval(p.pump.intervalHours);
+  if (!(SAFETY.pump.runsPerDayAllowed as readonly number[]).includes(p.pump.runsPerDay)) {
+    const snapped = nearestAllowedRuns(p.pump.runsPerDay);
     warnings.push(
-      `Pump interval ${p.pump.intervalHours}h is not a divisor of 24, so the device would not honour it. Using ${snapped}h.`,
+      `${p.pump.runsPerDay} runs a day does not divide 24 evenly, so the device would not honour it. Using ${snapped}.`,
     );
-    p.pump.intervalHours = snapped;
-  }
-
-  const runtime = clampNumber(
-    p.pump.runtimeMinutes,
-    SAFETY.pump.runtimeMinutes.min,
-    SAFETY.pump.runtimeMinutes.max,
-  );
-  if (runtime !== p.pump.runtimeMinutes) {
-    warnings.push(`Pump runtime ${p.pump.runtimeMinutes} min is outside the safe range. Using ${runtime} min.`);
-    p.pump.runtimeMinutes = runtime;
-  }
-
-  const speed = Math.round(
-    clampNumber(p.pump.speedPercent, SAFETY.pump.speedPercent.min, SAFETY.pump.speedPercent.max),
-  );
-  if (speed !== p.pump.speedPercent) {
-    warnings.push(`Pump speed ${p.pump.speedPercent}% is outside the safe range. Using ${speed}%.`);
-    p.pump.speedPercent = speed;
-  }
-
-  // Duty cycle last, because it depends on both values settled above.
-  if (dutyCycle(p.pump.intervalHours, p.pump.runtimeMinutes) > SAFETY.pump.maxDutyCycle) {
-    const capped = Math.max(
-      SAFETY.pump.runtimeMinutes.min,
-      Math.floor(SAFETY.pump.maxDutyCycle * p.pump.intervalHours * 60),
-    );
-    warnings.push(
-      `Running ${p.pump.runtimeMinutes} min every ${p.pump.intervalHours}h exceeds the ${SAFETY.pump.maxDutyCycle * 100}% duty cycle limit. Using ${capped} min.`,
-    );
-    p.pump.runtimeMinutes = capped;
+    p.pump.runsPerDay = snapped;
   }
 
   const tempBefore = { ...p.waterTempC };

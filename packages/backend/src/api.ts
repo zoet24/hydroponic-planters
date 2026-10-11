@@ -3,6 +3,7 @@ import { z, ZodError } from 'zod';
 import {
   BUILTIN_PRESETS,
   DesiredState,
+  DesiredStatePatch,
   findBuiltinPreset,
   FAULT_KINDS,
   phAdvice,
@@ -121,8 +122,10 @@ export async function routes(app: FastifyInstance): Promise<void> {
     const record = getPlanter(id);
     if (!record) return reply.code(404).send({ error: 'unknown planter' });
 
-    const patch = DesiredState.partial().parse(req.body);
-    record.desired = { ...record.desired, ...patch };
+    const patch = DesiredStatePatch.parse(req.body);
+    // Validate the result, not the patch: a runtime that is safe on its own
+    // can still break the duty cycle once merged with the stored interval.
+    record.desired = DesiredState.parse({ ...record.desired, ...patch });
     record.desiredSetAt = Date.now();
     persist(record);
     publishDesired(record, patch);

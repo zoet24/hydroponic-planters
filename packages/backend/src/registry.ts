@@ -42,6 +42,13 @@ export interface PlanterView {
   /** Epoch ms, or null when there is no preset or nothing recorded yet. */
   phCheckDueAt: number | null;
   nutrientsDueAt: number | null;
+  /** What was last recorded, independent of any preset. */
+  lastPhCheckAt: number | null;
+  lastPhValue: number | null;
+  lastNutrientsAt: number | null;
+  lastNoteAt: number | null;
+  lastNoteText: string | null;
+  noteCount: number;
   nutrientsStatus: 'ok' | 'due' | 'overdue' | null;
 }
 
@@ -281,15 +288,37 @@ export function applyPreset(record: PlanterRecord, preset: Preset): void {
  * last recorded one, per DESIGN.md — not to a fixed time of day.
  */
 function dueDates(planterId: string, preset: Preset | null, now: number) {
-  if (!preset) return { phCheckDueAt: null, nutrientsDueAt: null, nutrientsStatus: null };
-
+  // Looked up whether or not there is a preset: "last fed 3 days ago" is a
+  // fact about the planter, and the Live tiles show it before one is chosen.
   const lastPh = db
-    .prepare('SELECT ts FROM ph_checkins WHERE planter_id = ? ORDER BY ts DESC LIMIT 1')
-    .get(planterId) as { ts: number } | undefined;
+    .prepare('SELECT ts, ph FROM ph_checkins WHERE planter_id = ? ORDER BY ts DESC LIMIT 1')
+    .get(planterId) as { ts: number; ph: number } | undefined;
 
   const lastNutrients = db
     .prepare("SELECT ts FROM events WHERE planter_id = ? AND type = 'nutrients_added' ORDER BY ts DESC LIMIT 1")
     .get(planterId) as { ts: number } | undefined;
+
+  const lastNote = db
+    .prepare("SELECT ts, payload FROM events WHERE planter_id = ? AND type = 'note' ORDER BY ts DESC LIMIT 1")
+    .get(planterId) as { ts: number; payload: string | null } | undefined;
+
+  const notes = db
+    .prepare("SELECT COUNT(*) AS n FROM events WHERE planter_id = ? AND type = 'note'")
+    .get(planterId) as { n: number };
+
+  const recorded = {
+    lastPhCheckAt: lastPh?.ts ?? null,
+    lastPhValue: lastPh?.ph ?? null,
+    lastNutrientsAt: lastNutrients?.ts ?? null,
+    lastNoteAt: lastNote?.ts ?? null,
+    lastNoteText: noteTextOf(lastNote?.payload),
+    noteCount: notes.n,
+  };
+
+  // Due dates need a preset to schedule from; the records above do not.
+  if (!preset) {
+    return { phCheckDueAt: null, nutrientsDueAt: null, nutrientsStatus: null, ...recorded };
+  }
 
   const nutrients = nutrientStatus({
     lastAddedAt: lastNutrients?.ts ?? null,
@@ -301,7 +330,14 @@ function dueDates(planterId: string, preset: Preset | null, now: number) {
     phCheckDueAt: lastPh ? lastPh.ts + preset.ph.checkIntervalDays * 86_400_000 : now,
     nutrientsDueAt: nutrients.dueAt,
     nutrientsStatus: nutrients.status,
+    ...recorded,
   };
+}
+
+/** The note's text out of its stored payload, tolerating anything malformed. */
+function noteTextOf(payload: string | null | undefined): string | null {
+  const parsed = safeJson(payload) as { text?: unknown } | undefined;
+  return typeof parsed?.text === 'string' && parsed.text.trim() !== '' ? parsed.text : null;
 }
 
 function safeJson(value: unknown): unknown {

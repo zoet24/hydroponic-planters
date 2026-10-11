@@ -40,6 +40,12 @@ export interface PlanterView {
   alerts: Alert[];
   phCheckDueAt: number | null;
   nutrientsDueAt: number | null;
+  lastPhCheckAt: number | null;
+  lastPhValue: number | null;
+  lastNutrientsAt: number | null;
+  lastNoteAt: number | null;
+  lastNoteText: string | null;
+  noteCount: number;
   nutrientsStatus: 'ok' | 'due' | 'overdue' | null;
 }
 
@@ -49,9 +55,10 @@ export interface Preset {
   name: string;
   plantType: string;
   description?: string;
-  pump: { intervalHours: number; runtimeMinutes: number; speedPercent: number };
+  /** How often, only. Runtime and speed belong to the tower, not the plant. */
+  pump: { runsPerDay: number };
   waterTempC: { min: number; max: number };
   ph: { targetMin: number; targetMax: number; checkIntervalDays: number };
-  nutrients: { strengthMultiplier: number; scheduleDays: number; guidance: string };
+  nutrients: { type: string; strengthMultiplier: number; scheduleDays: number; guidance: string };
 }
 

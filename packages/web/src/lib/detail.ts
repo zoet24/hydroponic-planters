@@ -22,13 +22,3 @@ export function configRows(p: PlanterView): ConfigRow[] {
   ];
 }
 
-/** "in 2 days", "today", "overdue by 1 day" — for the pH chip. */
-export function dueLabel(dueAt: number | null, now = Date.now()): string {
-  if (dueAt === null) return 'not scheduled';
-  const days = Math.round((dueAt - now) / 86_400_000);
-  if (days > 1) return `in ${days} days`;
-  if (days === 1) return 'tomorrow';
-  if (days === 0) return 'today';
-  if (days === -1) return 'yesterday';
-  return `${Math.abs(days)} days ago`;
-}
