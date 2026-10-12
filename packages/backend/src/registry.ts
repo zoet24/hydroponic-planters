@@ -86,7 +86,7 @@ export const setSimulatedIds = (ids: string[]): void => {
  * `pnpm provision` runs in its own process and writes straight to the database,
  * so a planter created while the backend is running is absent from the in-memory
  * fleet until something reloads it. Without this, adding a freshly provisioned
- * planter 404s even though its token is perfectly valid.
+ * planter 404s even though its row exists.
  */
 export function getPlanter(id: string): PlanterRecord | undefined {
   const cached = fleet.get(id);

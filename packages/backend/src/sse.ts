@@ -78,5 +78,3 @@ setInterval(() => {
     }
   }
 }, 20_000).unref();
-
-export const clientCount = (): number => clients.size;

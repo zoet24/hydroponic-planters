@@ -8,7 +8,7 @@ describe('niceDomain', () => {
     expect(ticksFor(niceDomain([18.9, 21.4, 23.1]))).toEqual([24, 21, 18]);
   });
 
-  it('floors light at zero and rounds to a readable top', () => {
+  it('floors a zero-based series and rounds to a readable top', () => {
     expect(niceDomain([0, 2400, 5800], true)).toEqual([0, 6000]);
   });
 

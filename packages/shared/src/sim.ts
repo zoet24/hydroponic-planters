@@ -19,11 +19,6 @@ export const SIM_TOPICS = {
 export const FAULT_KINDS = ['lowWater', 'sensorDropout', 'offline'] as const;
 export type FaultKind = (typeof FAULT_KINDS)[number];
 
-export interface FaultCommand {
-  kind: FaultKind;
-  on: boolean;
-}
-
 export const isFaultKind = (v: string): v is FaultKind =>
   (FAULT_KINDS as readonly string[]).includes(v);
 

@@ -3,8 +3,6 @@
 # Revised from esphome.original.yaml against DESIGN.md §2. The original had no
 # MQTT, no sensors and no low-water interlock; it scheduled a pump and nothing
 # else. Everything the app relies on is added here.
-#
-# NOT YET COMPILED. See firmware/README.md before flashing.
 
 substitutions:
   # The MQTT topic prefix, and therefore the planter's identity to the app.

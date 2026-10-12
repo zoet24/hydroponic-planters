@@ -24,8 +24,6 @@ export const BUILTIN_PRESETS: readonly PresetType[] = Object.freeze(
   }),
 );
 
-export const BUILTIN_PRESET_IDS: readonly string[] = Object.freeze(BUILTIN_PRESETS.map((p) => p.id));
-
 export function findBuiltinPreset(id: string): PresetType | undefined {
   return BUILTIN_PRESETS.find((p) => p.id === id);
 }

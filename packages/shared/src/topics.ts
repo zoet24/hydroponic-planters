@@ -49,8 +49,6 @@ export function deviceTopics(id: string) {
   } as const;
 }
 
-export type DeviceTopics = ReturnType<typeof deviceTopics>;
-
 /**
  * The hbridge fan also exposes `<id>/fan/pump/direction/command`. Running a
  * submersible pump backwards is never what we want, so nothing in this codebase

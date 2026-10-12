@@ -14,7 +14,7 @@ function hashNoise(seed: number, t: number): number {
 const fractionOfDay = (now: number): number => (now % DAY_MS) / DAY_MS;
 
 /**
- * Water temperature follows the light curve but lags it by about two hours and
+ * Water temperature follows the daylight cycle but lags it by about two hours and
  * swings far less — thermal mass.
  */
 export function waterTempC(now: number, seed: number, base = 21, swing = 2): number {

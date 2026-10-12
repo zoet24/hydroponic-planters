@@ -126,7 +126,6 @@ export const Preset = PresetShape.refine(
   });
 
 export type Preset = z.infer<typeof PresetShape>;
-export type PresetSource = 'builtin' | 'custom' | 'ai';
 
 export interface ClampResult {
   preset: Preset;
