@@ -78,8 +78,8 @@ export function PlanterCard({
               ),
           )}
 
-        {/* Specified in UI-HANDOFF but not drawn on the artboard. The full
-            desired/reported table stays on the detail screen. */}
+        {/* Just the chip here. The full desired/reported table stays on the
+            detail screen. */}
         {isSyncing(p) && (
           <Chip tone={p.syncStale ? 'amber' : 'grey'}>
             {p.syncStale ? 'Not confirmed' : 'Syncing'}

@@ -7,7 +7,6 @@ dist/
 *.db
 *.db-journal
 data/
-qr/
 
 # secrets
 .env

@@ -64,7 +64,6 @@ function DetailHeader({ planter: p }: { planter: PlanterView }) {
         <Chip tone={p.online ? 'green' : 'red'}>
           {p.online ? 'Online' : `Offline, last seen ${relativeTime(p.lastSeenAt)}`}
         </Chip>
-        <Chip tone="grey">{p.simulated ? 'Simulated' : 'Real planter'}</Chip>
         <PlantedFor planter={p} grown={grown} />
       </div>
     </header>

@@ -1,6 +1,6 @@
 import type { EventIcon as IconName } from '@planter/shared';
 
-/** The timeline glyphs from the Dashboard artboard. */
+/** The timeline glyphs. */
 export function EventIcon({ name }: { name: IconName }) {
   if (name === 'ph') return <span className="timeline__ph">pH</span>;
 

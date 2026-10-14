@@ -175,6 +175,9 @@ importers:
       '@planter/shared':
         specifier: workspace:*
         version: link:../shared
+      aedes:
+        specifier: ^1.2.0
+        version: 1.2.0(supports-color@10.2.2)
       better-sqlite3:
         specifier: ^13.0.3
         version: 13.0.3
@@ -219,28 +222,6 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.4)(tsx@4.23.13)
-
-  packages/simulator:
-    dependencies:
-      '@planter/shared':
-        specifier: workspace:*
-        version: link:../shared
-      aedes:
-        specifier: ^1.2.0
-        version: 1.2.0(supports-color@10.2.2)
-      mqtt:
-        specifier: ^5.16.0
-        version: 5.16.0(supports-color@10.2.2)
-    devDependencies:
-      '@types/node':
-        specifier: ^22.10.2
-        version: 22.20.4
-      tsx:
-        specifier: ^4.19.2
-        version: 4.23.13
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
 
   packages/web:
     dependencies:

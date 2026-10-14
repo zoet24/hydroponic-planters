@@ -3,7 +3,7 @@ import { PLOT, axisLabel, niceDomain, phScaleX, stepPh, ticksFor, trimZero, xAt,
 
 describe('niceDomain', () => {
   it('fits a real temperature spread onto the axis the design draws', () => {
-    // 18.9-23.1 °C should read 18 / 21 / 24, as on the artboard.
+    // 18.9-23.1 °C should read 18 / 21 / 24.
     expect(niceDomain([18.9, 21.4, 23.1])).toEqual([18, 24]);
     expect(ticksFor(niceDomain([18.9, 21.4, 23.1]))).toEqual([24, 21, 18]);
   });
@@ -64,7 +64,7 @@ describe('trimZero', () => {
 });
 
 describe('phScaleX', () => {
-  it('reproduces the artboard geometry exactly', () => {
+  it('reproduces the plot geometry exactly', () => {
     // The target band for basil is drawn at x=86.3 with width 60.4, and a
     // reading of 6.8 sits at x=198.5.
     expect(phScaleX(5.5)).toBe(86.3);

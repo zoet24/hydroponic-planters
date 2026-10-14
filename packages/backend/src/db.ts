@@ -4,7 +4,7 @@ import Database from 'better-sqlite3';
 import { config } from './config';
 
 /**
- * SQLite, schema exactly as DESIGN.md §3. Config lives as JSON blobs rather than
+ * SQLite. Config lives as JSON blobs rather than
  * columns because presets will change shape several times; zod validates on the
  * way in and out, so there are no migrations to write.
  */
@@ -38,10 +38,6 @@ CREATE TABLE IF NOT EXISTS planters (
   planted_at    INTEGER,
   created_at    INTEGER NOT NULL
 );
-
--- Dropped with the QR claim flow. A planter is now added from inside the app,
--- so there is no pairing secret to mint, print or expire.
-DROP TABLE IF EXISTS claim_tokens;
 
 CREATE TABLE IF NOT EXISTS readings (
   planter_id TEXT NOT NULL,
@@ -121,8 +117,8 @@ const insertReading = db.prepare(
 );
 
 /**
- * Throttled at the boundary, not in the caller. The simulator at 60x would
- * otherwise write a million rows overnight.
+ * Throttled at the boundary, not in the caller, so a chatty device cannot
+ * write a million rows overnight.
  */
 const lastWrite = new Map<string, number>();
 

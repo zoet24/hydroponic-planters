@@ -1,6 +1,6 @@
 /**
- * Chart geometry, taken from the Dashboard artboard: a 700x130 viewBox with the
- * plot running x 44 -> 700 and y 20 (top) -> 100 (bottom).
+ * Chart geometry: a 700x130 viewBox with the plot running x 44 -> 700 and
+ * y 20 (top) -> 100 (bottom).
  */
 export const PLOT = { x0: 44, x1: 700, y0: 20, y1: 100 } as const;
 
@@ -47,7 +47,7 @@ export const xAt = (ts: number, from: number, to: number): number =>
 export const yAt = (value: number, [lo, hi]: [number, number]): number =>
   PLOT.y1 - ((value - lo) / Math.max(1e-9, hi - lo)) * (PLOT.y1 - PLOT.y0);
 
-/** Three gridline values: bottom, middle, top — matching the artboard. */
+/** Three gridline values: bottom, middle, top. */
 export const ticksFor = ([lo, hi]: [number, number]): number[] => [hi, (lo + hi) / 2, lo];
 
 /** Drops a trailing .0, so an axis reads "21 °C" rather than "21.0 °C". */
@@ -74,8 +74,7 @@ export function axisLabel(ts: number, spanMs: number): string {
 }
 
 /**
- * The pH scale on the check-in screen: 4.5 to 8.0 across a 302 unit track,
- * taken from the PhCheck artboard.
+ * The pH scale on the check-in screen: 4.5 to 8.0 across a 302 unit track.
  */
 export const PH_SCALE = { min: 4.5, max: 8, width: 302 } as const;
 

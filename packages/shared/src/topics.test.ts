@@ -4,7 +4,7 @@ import { deviceTopics, numeric, onOff, parseStateTopic, PRESS } from './topics';
 describe('topic construction', () => {
   const t = deviceTopics('planter-001');
 
-  it('matches the ESPHome layout from DESIGN.md', () => {
+  it('matches the ESPHome topic layout', () => {
     expect(t.status).toBe('planter-001/status');
     expect(t.waterTemperature).toBe('planter-001/sensor/water_temperature/state');
     expect(t.waterOk).toBe('planter-001/binary_sensor/water_ok/state');

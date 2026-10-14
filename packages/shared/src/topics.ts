@@ -1,5 +1,5 @@
 /**
- * The MQTT topic contract. Every topic string the backend and simulator use is
+ * The MQTT topic contract. Every topic string the backend uses is
  * built here from the device id, so reconciling with the real firmware is a
  * one-file change.
  *

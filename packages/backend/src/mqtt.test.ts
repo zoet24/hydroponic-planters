@@ -95,8 +95,8 @@ describe('desired state is re-asserted on the birth message', () => {
   });
 
   // The case the transition check missed. A device whose offline was never
-  // observed -- an ungraceful exit, or the simulator sharing one MQTT will
-  // across three planters -- announces itself with `online` already true. If
+  // observed -- an ungraceful exit, or a will that never arrived --
+  // announces itself with `online` already true. If
   // that is not treated as a birth, nothing re-asserts and the planter sits on
   // "not confirmed" for the rest of the session with no way to recover.
   it('re-asserts on a repeated birth, where no offline was ever seen', () => {

@@ -18,7 +18,6 @@ async function main(): Promise<void> {
   await app.listen({ port: config.port, host: config.host });
 
   console.log(`[backend] http://${config.host}:${config.port}`);
-  if (config.simEnabled) console.log('[backend] simulator control endpoints are ENABLED');
 }
 
 main().catch((err) => {

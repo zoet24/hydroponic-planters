@@ -5,14 +5,12 @@ import {
   DesiredState,
   DesiredStatePatch,
   findBuiltinPreset,
-  FAULT_KINDS,
   phAdvice,
   presetToDesired,
-  TIME_SCALE,
 } from '@planter/shared';
 import { config } from './config';
 import { db, readingsBetween, recentEvents, recordEvent } from './db';
-import { publishDesired, publishFault, publishPumpStop, publishRunNow, publishTimeScale } from './mqtt';
+import { publishDesired, publishPumpStop, publishRunNow } from './mqtt';
 import {
   allPlanters,
   applyPreset,
@@ -73,10 +71,7 @@ export async function routes(app: FastifyInstance): Promise<void> {
    */
   app.post('/api/admin/reload', async () => {
     const count = reloadFromDb();
-    broadcast('snapshot', {
-      planters: allPlanters().map((p) => toView(p)),
-      simEnabled: config.simEnabled,
-    });
+    broadcast('snapshot', { planters: allPlanters().map((p) => toView(p)) });
     console.log(`[registry] reloaded ${count} planter(s) from disk`);
     return { ok: true, planters: count };
   });
@@ -292,7 +287,7 @@ export async function routes(app: FastifyInstance): Promise<void> {
   /**
    * Add a discovered planter to the dashboard.
    *
-   * Replaces the QR claim flow. The backend still auto-discovers anything that
+   * The backend auto-discovers anything that
    * publishes, but a planter stays off the dashboard until it is added here, so
    * the fleet starts empty and onboarding is a deliberate step.
    *
@@ -352,23 +347,4 @@ export async function routes(app: FastifyInstance): Promise<void> {
     const preset = findBuiltinPreset(presetId) ?? resolvePreset(presetId);
     return preset ?? reply.code(404).send({ error: 'unknown preset' });
   });
-
-  // ── Simulator control. Present only when SIM_ENABLED, so it cannot ship by accident.
-  if (config.simEnabled) {
-    app.post('/api/sim/:id/fault', async (req, reply) => {
-      const { id } = IdParam.parse(req.params);
-      const body = z.object({ kind: z.enum(FAULT_KINDS), on: z.boolean() }).parse(req.body);
-      if (!getPlanter(id)) return reply.code(404).send({ error: 'unknown planter' });
-      publishFault(id, body.kind, body.on);
-      return { ok: true, ...body };
-    });
-
-    app.post('/api/sim/time-scale', async (req) => {
-      const { scale } = z
-        .object({ scale: z.number().min(TIME_SCALE.min).max(TIME_SCALE.max) })
-        .parse(req.body);
-      publishTimeScale(scale);
-      return { ok: true, scale };
-    });
-  }
 }

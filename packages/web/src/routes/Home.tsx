@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDevDrawer, useLongPress } from '../components/DevDrawer';
 import { PlanterCard } from '../components/PlanterCard';
 import { EditPlanterSheet, RemovePlanterSheet } from '../components/PlanterSheets';
 import { fleetSummary } from '../lib/format';
@@ -8,8 +7,6 @@ import { usePlanters } from '../PlantersContext';
 
 export function Home() {
   const { planters: fleet, connection } = usePlanters();
-  const dev = useDevDrawer();
-  const longPress = useLongPress(() => dev.setOpen(true));
 
   // The dashboard shows only what has been added. The backend discovers any
   // device that publishes, so without this gate a planter would appear the
@@ -29,8 +26,7 @@ export function Home() {
   return (
     <div className="page">
       <header className="masthead">
-        {/* No visible affordance: a long press here opens the simulator drawer. */}
-        <span className="wordmark" {...longPress}>Smart Planter</span>
+        <span className="wordmark">Smart Planter</span>
         <div className="masthead__right">
           {connection !== 'live' && (
             <span className="connection" role="status">

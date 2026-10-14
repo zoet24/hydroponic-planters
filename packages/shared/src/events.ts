@@ -1,6 +1,6 @@
 /**
  * The event vocabulary the timeline reads. Pure, so the phrasing and the
- * start/stop pairing are testable rather than tangled into a component.
+ * start/stop pairs are testable rather than tangled into a component.
  */
 
 export interface PlanterEvent {
@@ -147,7 +147,7 @@ export function eventIcon(type: string): EventIcon {
   }
 }
 
-/** "Today 09:52", "Yesterday 14:20", "2 days ago 21:15" — as the artboard reads. */
+/** "Today 09:52", "Yesterday 14:20", "2 days ago 21:15". */
 export function eventTime(ts: number, now = Date.now()): string {
   const time = new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const midnight = new Date(now);

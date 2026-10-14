@@ -15,8 +15,6 @@ interface PlantersState {
   byId: Record<string, PlanterView>;
   planters: PlanterView[];
   connection: Connection;
-  /** Whether the backend exposes the simulator control endpoints. */
-  simEnabled: boolean;
 }
 
 const PlantersCtx = createContext<PlantersState | null>(null);
@@ -24,18 +22,13 @@ const PlantersCtx = createContext<PlantersState | null>(null);
 export function PlantersProvider({ children }: { children: React.ReactNode }) {
   const [byId, setById] = useState<Record<string, PlanterView>>({});
   const [connection, setConnection] = useState<Connection>('connecting');
-  const [simEnabled, setSimEnabled] = useState(false);
 
   useEffect(() => {
     const es = new EventSource('/api/stream');
 
     es.addEventListener('snapshot', (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as {
-        planters: PlanterView[];
-        simEnabled?: boolean;
-      };
+      const data = JSON.parse((e as MessageEvent).data) as { planters: PlanterView[] };
       setById(Object.fromEntries(data.planters.map((p) => [p.id, p])));
-      setSimEnabled(data.simEnabled === true);
       setConnection('live');
     });
 
@@ -56,9 +49,8 @@ export function PlantersProvider({ children }: { children: React.ReactNode }) {
       byId,
       planters: Object.values(byId).sort((a, b) => a.id.localeCompare(b.id)),
       connection,
-      simEnabled,
     }),
-    [byId, connection, simEnabled],
+    [byId, connection],
   );
 
   return <PlantersCtx.Provider value={value}>{children}</PlantersCtx.Provider>;

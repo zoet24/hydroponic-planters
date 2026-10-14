@@ -6,14 +6,12 @@ import {
   onOff,
   parseStateTopic,
   PRESS,
-  SIM_TOPICS,
   SUBSCRIPTIONS,
   type DesiredState,
-  type FaultKind,
 } from '@planter/shared';
 import { config } from './config';
 import { recordEvent, recordReading } from './db';
-import { ensurePlanter, persist, setSimulatedIds, type PlanterRecord } from './registry';
+import { ensurePlanter, persist, type PlanterRecord } from './registry';
 import { markDirty } from './sse';
 
 let client: MqttClient;
@@ -23,7 +21,7 @@ export function startMqtt(): MqttClient {
 
   client.on('connect', () => {
     console.log(`[mqtt] connected to ${config.mqttUrl}`);
-    client.subscribe([...SUBSCRIPTIONS, SIM_TOPICS.roster]);
+    client.subscribe([...SUBSCRIPTIONS]);
   });
 
   client.on('error', (err) => console.error('[mqtt] error:', err.message));
@@ -41,15 +39,6 @@ export function startMqtt(): MqttClient {
  *   broker stores it, so this really does mean "history, not news".
  */
 function ingest(topic: string, raw: string, retained = false): void {
-  if (topic === SIM_TOPICS.roster) {
-    try {
-      setSimulatedIds(JSON.parse(raw) as string[]);
-    } catch {
-      /* ignore a malformed roster */
-    }
-    return;
-  }
-
   const parsed = parseStateTopic(topic);
   if (!parsed) return;
 
@@ -84,9 +73,9 @@ function ingest(topic: string, raw: string, retained = false): void {
       // app's stored intent survive a reboot.
       //
       // Keyed on receiving `online`, not on a transition to it. A device whose
-      // offline was never observed -- an ungraceful exit, or the simulator,
-      // which shares one MQTT connection across three planters and so has one
-      // will between them -- reconnects with `record.online` already true. On a
+      // offline was never observed -- an ungraceful exit, or a broker that
+      // never delivered the will -- reconnects with `record.online` already
+      // true. On a
       // transition check that is not a transition, nothing re-asserts, and the
       // two stay diverged with no way to self-heal. ESPHome publishes its birth
       // once per connection, so this costs no extra publishes in the normal case.
@@ -229,10 +218,3 @@ export function publishPumpStop(planterId: string): void {
   });
 }
 
-export function publishFault(planterId: string, kind: FaultKind, on: boolean): void {
-  client.publish(SIM_TOPICS.fault(planterId), JSON.stringify({ kind, on }), { qos: 0 });
-}
-
-export function publishTimeScale(scale: number): void {
-  client.publish(SIM_TOPICS.timeScale, String(scale), { qos: 0 });
-}

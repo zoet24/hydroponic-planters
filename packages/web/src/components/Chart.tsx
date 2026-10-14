@@ -7,7 +7,7 @@ import { axisLabel, niceDomain, PLOT, ticksFor, timeLabel, xAt, yAt, type Point 
  * a second y-axis — two measures on two scales is the most misread chart there
  * is.
  *
- * Hover gives a crosshair and a value readout. Not drawn on the artboard, but a
+ * Hover gives a crosshair and a value readout, because a
  * line chart people can't interrogate is a picture of data rather than data.
  */
 export function LineChart({

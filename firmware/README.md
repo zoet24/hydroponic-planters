@@ -3,10 +3,10 @@
 ESPHome config for the tower. `esphome.yaml` is the live one;
 `esphome.original.yaml` is what the board shipped with, kept for reference.
 
-> **Compiles clean** on ESPHome 2026.9.0 — flash 60.6%, RAM 34.8%. The lambdas
-> and component options are therefore verified. What is *not* verified is
-> anything needing the physical board: GPIO choices, float-switch polarity, and
-> that the sensors are wired where the config says they are.
+> **Verified on hardware** (ESPHome 2026.9.0, flash 60.6%, RAM 34.8%). Flashed
+> and run on the real tower: the temperature probe reads, the float switch and
+> interlock behave, and the pump moves water. The pin assignments below reflect
+> that build, including the deliberate motor-pin swap.
 
 ## What changed from the original
 
@@ -14,7 +14,7 @@ The original scheduled a pump and nothing else. Added here:
 
 - **MQTT**, with `topic_prefix` from a substitution so the planter's identity to
   the app is separate from the ESPHome node name.
-- **DS18B20 water temperature** and **BH1750 light level**.
+- **DS18B20 water temperature**.
 - **Float switch** as `Water OK`, with a low-water interlock that refuses to
   start the pump *and* cuts a run already in progress.
 - **Pump Enable** master switch, and a **Pump Blocked** sensor so the interlock
@@ -35,12 +35,17 @@ Two removals worth knowing about:
 
 1. `cp secrets.yaml.example secrets.yaml` and fill it in.
 2. **Confirm the GPIOs against your ESP32-C3 Super Mini pinout.** The config uses
-   I²C on 6/7, one-wire on 5 and the float switch on 10, with the motor driver
-   already on 3/4. Avoid 2, 8 and 9 — they are strapping pins.
+   one-wire on 5, the float switch on 10 and the motor driver on 3/4. Avoid 2, 8
+   and 9 — they are strapping pins.
 3. **Check the float switch polarity on the bench, with a glass of water.** The
-   pin is configured `inverted: true`, which assumes the switch closes when the
-   float rises. Backwards, the interlock blocks a full tank and permits a dry
-   one — and it will look like working code.
+   pin is **not** inverted. The switch sits between GPIO10 and ground, so water
+   present leaves it open, the internal pull-up reads HIGH, and ESPHome publishes
+   that as ON. Wire it the other way and the interlock blocks a full tank and
+   permits a dry one — and it will look like working code.
+4. **Expect to check the pump direction.** GPIO03 and GPIO04 are swapped in the
+   `output:` block relative to the obvious reading of the wiring, because the
+   motor leads are reversed at the driver on this build. If yours hums without
+   moving water, swap them back.
 
 ## Commands
 
@@ -69,6 +74,6 @@ that proves the board flashed and wired up correctly.
 mosquitto_sub -h localhost -v -t 'planter-001/#'
 ```
 
-Compare what appears against the table in DESIGN.md §2. If anything differs,
-fix `packages/shared/src/topics.ts` — every topic string in the codebase is
-built there, and `topics.firmware.test.ts` cross-checks this file against it.
+Compare what appears against `packages/shared/src/topics.ts` — every topic
+string in the codebase is built there, and `topics.firmware.test.ts`
+cross-checks this file against it.

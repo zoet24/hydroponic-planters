@@ -1,7 +1,6 @@
 /*
- * Tokens and components from UI-HANDOFF.md and the Main artboard of the
- * "Smart Planter app" design canvas. Values here are the design's, not
- * approximations — check against the artboard before changing one.
+ * Design tokens and components. Every size is in px and deliberate; prefer
+ * changing a token here over overriding a value further down.
  */
 :root {
   --bg: #eef1ea;
@@ -38,20 +37,19 @@ body {
 .page {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 24px;                 /* phone artboards use 24 */
+  padding: 24px;                 /* phone */
   display: flex;
   flex-direction: column;
   gap: 28px;
   /*
-   * A container, not a media-query subject. Presenter mode zooms the body, and
-   * media queries keep reporting the unzoomed viewport — so a zoomed page kept
-   * its three-column layout in two columns' worth of space and the readouts
-   * collided. Container queries measure the element, so they follow the zoom.
+   * A container, not a media-query subject. Container queries measure the
+   * element rather than the window, so the layout stays correct wherever the
+   * page is embedded or scaled.
    */
   container: page / inline-size;
 }
 @container page (min-width: 900px) {
-  .page { padding: 40px 56px; gap: 32px; }   /* desktop artboard */
+  .page { padding: 40px 56px; gap: 32px; }   /* desktop */
 }
 
 .masthead { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
@@ -222,10 +220,10 @@ h1 {
 .readout__label { font-size: 13px; color: var(--muted); }
 
 /*
- * 26px is the design's size, used whenever the card is wide enough to hold it.
- * Three columns of 26px in a narrow card overflow, so it steps down rather than
- * wrapping mid-unit. Keyed to the card, not the viewport, so it stays right
- * under presenter zoom.
+ * 26px whenever the card is wide enough to hold it. Three columns of 26px in a
+ * narrow card overflow, so it steps down rather than wrapping mid-unit. Keyed
+ * to the card, not the viewport, so a card in a two-column layout and one in
+ * three columns each get a sensible readout size.
  */
 .readout__value {
   font-family: var(--display);
@@ -1008,75 +1006,11 @@ h1 {
   .screen--sheet { min-height: 100%; }
 }
 
-/* ── Dev drawer (simulator controls) ────────────────────────── */
-
-.wordmark { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-
-.devdrawer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: 60dvh;
-  padding: 16px 24px calc(16px + env(safe-area-inset-bottom));
-  background: var(--card);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -8px 24px rgb(22 36 27 / 10%);
-}
-@media (min-width: 900px) {
-  .devdrawer { left: auto; width: 420px; border-left: 1px solid var(--border); border-top-left-radius: 16px; }
-}
-
-.devdrawer__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.devdrawer__title { font-family: var(--display); font-weight: 700; font-size: 18px; }
-.devdrawer__scroll { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
-
-.devdrawer__planter { display: flex; flex-direction: column; gap: 8px; }
-.devdrawer__name { font-size: 14px; font-weight: 600; color: var(--muted); }
-.devdrawer__faults { display: flex; flex-wrap: wrap; gap: 8px; }
-
-.devchip {
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.devchip:hover { border-color: var(--ink); }
-.devchip--on { background: var(--ink); border-color: var(--ink); color: #fff; }
-.devchip:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-
-.devdrawer__note { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
-.devdrawer__note code { background: var(--chip-grey-bg); border-radius: 4px; padding: 1px 4px; }
-
-/* ── Presenter mode ─────────────────────────────────────────── */
+/* ── New planter arriving ───────────────────────────────────── */
 
 /*
- * Every size in this stylesheet is in px, taken from the artboards, so scaling
- * the root font size would move nothing. `zoom` scales layout and type together
- * and leaves the design's proportions intact.
- */
-:root[data-presenter='true'] body { zoom: 1.35; }
-
-/* Secondary chrome the audience does not need. Data stays. */
-:root[data-presenter='true'] .connection,
-:root[data-presenter='true'] .fineprint,
-:root[data-presenter='true'] .devdrawer { display: none; }
-
-/* ── New planter arriving (the claim moment) ────────────────── */
-
-/*
- * A planter appearing for the first time rings for two seconds. Without it the
- * audience is hunting for a change in a grid of near-identical cards.
+ * A planter appearing for the first time rings for two seconds, so a new card
+ * is noticeable in a grid of near-identical ones.
  */
 @keyframes planter-arrive {
   0%   { box-shadow: 0 0 0 0 rgb(47 122 75 / 0%); }

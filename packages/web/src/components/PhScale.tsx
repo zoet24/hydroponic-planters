@@ -1,6 +1,6 @@
 import { PH_SCALE, phScaleX } from '@planter/shared';
 
-/** The pH bar from the PhCheck artboard: track, target band, and your reading. */
+/** The pH bar: track, target band, and your reading. */
 export function PhScale({ ph, min, max }: { ph: number; min: number; max: number }) {
   const bandX = phScaleX(min);
   const bandWidth = phScaleX(max) - bandX;

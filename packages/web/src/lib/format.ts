@@ -14,10 +14,9 @@ export const waterLabel = (ok: boolean | undefined): string =>
 export const tempLabel = (c: number | undefined): string =>
   typeof c === 'number' ? `${c.toFixed(1)}\u00a0°C` : 'No data';
 
-/** "Basil preset, real planter" — the subtitle under a card's name. */
+/** "Basil preset" — the subtitle under a card's name. */
 export function describePlanter(p: PlanterView): string {
-  const origin = p.simulated ? 'simulated' : 'real planter';
-  return p.preset ? `${p.preset.name} preset, ${origin}` : `No preset yet, ${origin}`;
+  return p.preset ? `${p.preset.name} preset` : 'No preset yet';
 }
 
 export function relativeTime(ts: number | null, now = Date.now()): string {
@@ -37,8 +36,8 @@ export interface Readout {
 }
 
 /**
- * The third readout is contextual, matching the artboard: a countdown when the
- * pump is armed and idle, otherwise why it is not going to run.
+ * The third readout is contextual: a countdown when the pump is armed and
+ * idle, otherwise why it is not going to run.
  */
 export function pumpReadout(p: PlanterView, now = Date.now()): Readout {
   if (!p.online) return { label: 'Pump', value: 'Unknown', muted: true };
@@ -105,8 +104,8 @@ export function nutrientChip(p: PlanterView, now = Date.now()): DueChip | null {
 function chipFor(state: DueState, noun: string): DueChip | null {
   switch (state) {
     case 'soon':
-      // Amber, matching the artboard's "pH check due soon". The label carries
-      // the distinction between soon, due and overdue, not the colour.
+      // Amber for all three. The label carries the distinction between
+      // soon, due and overdue, not the colour.
       return { tone: 'amber', label: `${noun} due soon` };
     case 'due':
       return { tone: 'amber', label: `${noun} due` };

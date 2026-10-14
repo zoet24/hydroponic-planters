@@ -15,9 +15,8 @@ interface Preset {
 /**
  * Add a planter to the dashboard.
  *
- * Replaces the QR claim flow. The backend already discovers anything publishing
- * to MQTT, so this lists what it has found and has not been added yet — no
- * pairing code, no camera, nothing to print.
+ * The backend already discovers anything publishing to MQTT, so this lists
+ * what it has found that has not been added yet.
  */
 export function AddPlanter() {
   const { planters } = usePlanters();

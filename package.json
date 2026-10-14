@@ -7,16 +7,13 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "concurrently -n broker,backend,sim,web -c magenta,green,yellow,cyan \"pnpm dev:broker\" \"pnpm dev:backend\" \"pnpm dev:sim\" \"pnpm dev:web\"",
-    "dev:broker": "pnpm --filter @planter/simulator broker",
+    "dev": "concurrently -n broker,backend,web -c magenta,green,cyan \"pnpm dev:broker\" \"pnpm dev:backend\" \"pnpm dev:web\"",
+    "dev:broker": "pnpm --filter @planter/backend broker",
     "dev:backend": "pnpm --filter @planter/backend dev",
-    "dev:sim": "pnpm --filter @planter/simulator dev",
     "dev:web": "pnpm --filter @planter/web dev",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
-    "provision": "pnpm --filter @planter/backend provision",
-    "seed": "pnpm --filter @planter/backend seed",
-    "demo:reset": "pnpm --filter @planter/backend demo:reset"
+    "provision": "pnpm --filter @planter/backend provision"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

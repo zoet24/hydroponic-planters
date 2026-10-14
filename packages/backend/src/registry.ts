@@ -29,7 +29,6 @@ export interface PlanterView {
   added: boolean;
   /** When the grower says it was planted. Null until they set it. */
   plantedAt: number | null;
-  simulated: boolean;
   online: boolean;
   lastSeenAt: number | null;
   desired: DesiredState;
@@ -74,11 +73,6 @@ const DEFAULT_DESIRED: DesiredState = {
 };
 
 const fleet = new Map<string, PlanterRecord>();
-let simulatedIds = new Set<string>();
-
-export const setSimulatedIds = (ids: string[]): void => {
-  simulatedIds = new Set(ids);
-};
 
 /**
  * Look up a planter, falling back to SQLite for one we have not seen.
@@ -146,10 +140,10 @@ export function persist(record: PlanterRecord): void {
 /**
  * Re-read the stored fields from SQLite, keeping live telemetry as it is.
  *
- * Needed because scripts like `pnpm demo:reset` write straight to the database
- * while the backend is running. Without this the in-memory copy wins and
- * silently overwrites them on the next MQTT message, so the reset appears to do
- * nothing. Config comes from the database; `online` and `reported` stay in
+ * Needed because `pnpm provision` writes straight to the database while the
+ * backend is running. Without this the in-memory copy wins and silently
+ * overwrites those changes on the next MQTT message, so they appear not to
+ * have applied. Config comes from the database; `online` and `reported` stay in
  * memory, because the broker will not resend retained state on our behalf.
  */
 export function reloadFromDb(): number {
@@ -246,7 +240,6 @@ export function toView(record: PlanterRecord, now = Date.now()): PlanterView {
     preset,
     added: record.addedAt !== null,
     plantedAt: record.plantedAt,
-    simulated: simulatedIds.has(record.id),
     online: record.online,
     lastSeenAt: record.lastSeenAt,
     desired: record.desired,
@@ -285,7 +278,7 @@ export function applyPreset(record: PlanterRecord, preset: Preset): void {
 
 /**
  * When the next pH check and nutrient dose fall due. Both are anchored to the
- * last recorded one, per DESIGN.md — not to a fixed time of day.
+ * last recorded one, not to a fixed time of day.
  */
 function dueDates(planterId: string, preset: Preset | null, now: number) {
   // Looked up whether or not there is a preset: "last fed 3 days ago" is a

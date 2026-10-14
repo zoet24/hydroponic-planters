@@ -11,7 +11,6 @@ export interface PlanterView {
   added: boolean;
   /** When the grower says it went in. Null until they set it. */
   plantedAt: number | null;
-  simulated: boolean;
   online: boolean;
   lastSeenAt: number | null;
   desired: {
